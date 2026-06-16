@@ -907,8 +907,9 @@ async function submitTicket() {
     nif:       id('f-nif').value,
     iva:       id('f-iva').value,
     notas:     id('f-notas').value,
-    auditor:   cfg.nombre || 'Sin nombre',
-    status:    'pendiente'
+    auditor:      cfg.nombre || 'Sin nombre',
+    emailAuditor: cfg.holded || '',
+    status:       'pendiente'
   };
 
   goTo('screen-sending');
@@ -920,18 +921,20 @@ async function doSend(cfg) {
   let imageUrl = null;
 
 
-  // Subir foto a imgbb
+  // Subir foto a imgbb (redimensionar primero para evitar timeouts)
   if (capturedData) {
     lbl.textContent = 'Subiendo foto...';
     bar.style.width = '30%';
     try {
+      const smallImg = await resizeImage(capturedData, 1000);
       const imgForm = new FormData();
       imgForm.append('key', '7281477b825118fcf625946b80cd5aa5');
-      imgForm.append('image', capturedData.split(',')[1]);
+      imgForm.append('image', smallImg.split(',')[1]);
       const imgRes  = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: imgForm });
       const imgJson = await imgRes.json();
       if (imgJson.success) imageUrl = imgJson.data.url;
-    } catch (e) { console.warn('imgbb:', e); }
+      else console.warn('imgbb error:', imgJson);
+    } catch (e) { console.warn('imgbb:', e); toast('Aviso: no se pudo subir la foto'); }
   }
 
   bar.style.width = '55%';
@@ -1002,12 +1005,12 @@ function buildCard(t, imageUrl, holdedEmail) {
     });
   }
 
-  // Botón rechazo: email al auditor
-  const emailAuditor = holdedEmail || '';
+  // Botón rechazo: email al auditor (su email personal de trabajo)
+  const emailAuditor = t.emailAuditor || holdedEmail || '';
   actions.push({
     type: 'Action.OpenUrl', style: 'destructive',
     title: '❌ Rechazar',
-    url: `mailto:${emailAuditor}?subject=${encodeURIComponent('Ticket rechazado — ' + t.tipo + ' ' + fechaFmt)}&body=${encodeURIComponent('Hola ' + t.auditor + ',\n\nTu ticket ha sido rechazado.\n\nMotivo: ')}`
+    url: `mailto:${emailAuditor}?subject=${encodeURIComponent('[RECHAZADO] ' + t.tipo + ' — ' + t.auditor + ' — ' + fechaFmt)}&body=${encodeURIComponent('Hola ' + t.auditor + ',\n\nTu ticket ha sido rechazado.\n\nTipo: ' + t.tipo + '\nFecha: ' + fechaFmt + '\nImporte: ' + t.importe + ' €\n\nMotivo: ')}`
   });
 
   return {
