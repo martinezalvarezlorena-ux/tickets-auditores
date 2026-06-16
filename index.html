@@ -256,6 +256,11 @@
         <label class="label">Tu email de trabajo *</label>
         <input class="input" id="cfg-holded" type="email" placeholder="nombre@msib.es">
       </div>
+      <div class="fg" style="margin-top:4px">
+        <label class="label">API Key OCR.space (gratuita) *</label>
+        <input class="input" id="cfg-ocrkey" type="text" placeholder="helloworld">
+        <div style="font-size:10px;color:#64748B;margin-top:4px">Regístrate gratis en <strong>ocr.space/OCRAPI</strong> para obtener tu clave. Puedes usar <em>helloworld</em> para probar.</div>
+      </div>
       <button class="btn btn-success" onclick="setupFinish()">✅ Guardar y empezar</button>
       <button class="btn btn-ghost" onclick="setupPrev(2)">← Atrás</button>
     </div>
@@ -525,8 +530,6 @@
 <!-- ═══════════════════════════════════════════
      TESSERACT.JS (OCR en el navegador)
 ════════════════════════════════════════════ -->
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
-
 <script>
 // ─────────────────────────────────────────
 //  CONFIG & STORAGE
@@ -601,6 +604,7 @@ function setupFinish() {
     nombre:  id('cfg-nombre').value.trim(),
     webhook: id('cfg-webhook').value.trim(),
     holded:  id('cfg-holded').value.trim(),
+    ocrkey:  id('cfg-ocrkey').value.trim() || 'helloworld',
     ok: true
   });
   goTo('screen-home');
@@ -685,33 +689,39 @@ async function startOCR() {
   const lbl = id('ocr-label'), bar = id('ocr-bar');
 
   try {
-    lbl.textContent = 'Cargando motor de lectura...';
-    bar.style.width = '8%';
+    lbl.textContent = 'Enviando imagen al servidor OCR...';
+    bar.style.width = '20%';
 
-    const worker = await Tesseract.createWorker({
-      logger: m => {
-        if (m.status === 'loading tesseract core') {
-          lbl.textContent = 'Cargando motor OCR...'; bar.style.width = '15%';
-        } else if (m.status === 'loading language traineddata') {
-          lbl.textContent = 'Cargando idioma español...'; bar.style.width = '35%';
-        } else if (m.status === 'initializing api') {
-          lbl.textContent = 'Inicializando...'; bar.style.width = '50%';
-        } else if (m.status === 'recognizing text') {
-          const p = Math.round(m.progress * 100);
-          bar.style.width = (55 + p * 0.4) + '%';
-          lbl.textContent = `Leyendo texto... ${p}%`;
-        }
-      }
-    });
+    const cfg = getConfig();
+    const apiKey = cfg.ocrkey || 'helloworld';
 
-    await worker.loadLanguage('spa');
-    await worker.initialize('spa');
+    // Preparar imagen: reducir si es muy grande
+    const imgData = await resizeImage(capturedData, 1500);
 
-    bar.style.width = '90%';
+    bar.style.width = '40%';
+    lbl.textContent = 'Leyendo texto del ticket...';
+
+    const formData = new FormData();
+    formData.append('base64Image', imgData);
+    formData.append('language', 'spa');
+    formData.append('isOverlayRequired', 'false');
+    formData.append('detectOrientation', 'true');
+    formData.append('scale', 'true');
+    formData.append('OCREngine', '2');
+    formData.append('apikey', apiKey);
+
+    const res  = await fetch('https://api.ocr.space/parse/image', { method: 'POST', body: formData });
+    const json = await res.json();
+
+    bar.style.width = '85%';
     lbl.textContent = 'Analizando campos...';
 
-    const { data: { text } } = await worker.recognize(capturedData);
-    await worker.terminate();
+    let text = '';
+    if (json.ParsedResults && json.ParsedResults.length > 0) {
+      text = json.ParsedResults[0].ParsedText || '';
+    } else if (json.ErrorMessage) {
+      throw new Error(json.ErrorMessage);
+    }
 
     bar.style.width = '100%';
     lbl.textContent = '¡Completado!';
@@ -722,10 +732,27 @@ async function startOCR() {
 
   } catch (err) {
     console.error(err);
-    toast('Error en OCR. Rellena los datos manualmente.');
+    toast('Error OCR. Rellena los datos manualmente.');
     fillForm({});
     goTo('screen-review');
   }
+}
+
+// Redimensiona imagen para no superar maxW px de ancho
+function resizeImage(dataUrl, maxW) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const ratio = Math.min(1, maxW / img.width);
+      const w = Math.round(img.width * ratio);
+      const h = Math.round(img.height * ratio);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    img.src = dataUrl;
+  });
 }
 
 // ─────────────────────────────────────────
@@ -1022,6 +1049,7 @@ function loadSettings() {
   id('s-nombre').value  = c.nombre  || '';
   id('s-webhook').value = c.webhook || '';
   id('s-holded').value  = c.holded  || '';
+  if(id('s-ocrkey')) id('s-ocrkey').value = c.ocrkey || '';
 }
 
 function saveSettings() {
@@ -1029,6 +1057,7 @@ function saveSettings() {
   c.nombre  = id('s-nombre').value.trim();
   c.webhook = id('s-webhook').value.trim();
   c.holded  = id('s-holded').value.trim();
+  if(id('s-ocrkey')) c.ocrkey = id('s-ocrkey').value.trim();
 
   saveConfig(c);
   toast('✅ Ajustes guardados');
