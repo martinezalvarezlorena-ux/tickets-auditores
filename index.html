@@ -953,7 +953,8 @@ async function doSend(cfg) {
 
   bar.style.width = '90%';
   lbl.textContent = 'Guardando...';
-  addHistory({ ...ticket, imageUrl });
+  ticket.imageUrl = imageUrl;
+  addHistory({ ...ticket });
   bar.style.width = '100%';
   await sleep(400);
   showSuccess();
@@ -1034,6 +1035,19 @@ function showSuccess() {
   goTo('screen-success');
   const t = ticket;
   const fechaFmt = t.fecha ? t.fecha.split('-').reverse().join('/') : '—';
+  const adminEmail = 'lorena.martinez@msib.es';
+  const subj = encodeURIComponent(`[TICKET] ${t.tipo} — ${t.auditor} — ${t.encargo} — ${fechaFmt}`);
+  const imgLine = ticket.imageUrl ? `\n📷 Foto: ${ticket.imageUrl}` : '';
+  const bodyMail = encodeURIComponent(
+    `Hola Lorena,\n\nTe envío el siguiente ticket para su validación:\n\n` +
+    `Auditor: ${t.auditor}\nEncargo: ${t.encargo}\nTipo: ${t.tipo}\n` +
+    `Importe: ${t.importe} €\nFecha: ${fechaFmt}\n` +
+    `Proveedor: ${t.proveedor || '—'}\nNIF/CIF: ${t.nif || '—'}\n` +
+    `IVA: ${t.iva ? t.iva + '%' : '—'}\n` +
+    `Notas: ${t.notas || '—'}${imgLine}\n\nQuedo a tu disposición para cualquier consulta.`
+  );
+  const mailtoUrl = `mailto:${adminEmail}?subject=${subj}&body=${bodyMail}`;
+
   id('ok-detail').innerHTML = `
     <div class="card-title">Resumen del ticket enviado</div>
     <div style="font-size:12px;line-height:2.2">
@@ -1043,7 +1057,14 @@ function showSuccess() {
       <div><strong>Encargo:</strong> ${t.encargo}</div>
       <div><strong>Estado:</strong> <span class="badge badge-orange">⏳ Pendiente de validación</span></div>
     </div>
+    <a href="${mailtoUrl}" class="btn btn-primary" style="display:block;text-align:center;text-decoration:none;margin-top:12px">
+      📧 Enviar email a administración
+    </a>
+    <div style="font-size:10px;color:#64748B;text-align:center;margin-top:6px">Toca para abrir tu correo y confirma el envío</div>
   `;
+
+  // Guardar imageUrl en el ticket para el mailto
+  ticket.imageUrl = ticket.imageUrl || '';
 }
 
 function resetAll() {
