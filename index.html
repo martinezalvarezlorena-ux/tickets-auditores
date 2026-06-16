@@ -983,9 +983,10 @@ function buildCard(t, imageUrl, holdedEmail) {
     body.splice(1, 0, { type: 'Image', url: imageUrl, size: 'Large', altText: 'Foto del ticket' });
   }
 
-  // Botón Aprobar → abre email a Holded pre-relleno
+  // Botón Aprobar → abre email a administración
+  const adminEmail = holdedEmail || 'lorena.martinez@msib.es';
   const actions = [];
-  if (holdedEmail) {
+  {
     const subj = encodeURIComponent(`[APROBADO] ${t.tipo} — ${t.auditor} — ${t.encargo} — ${fechaFmt}`);
     const body_mail = encodeURIComponent(
       `Ticket aprobado para gestión.\n\n` +
@@ -997,7 +998,7 @@ function buildCard(t, imageUrl, holdedEmail) {
     actions.push({
       type: 'Action.OpenUrl', style: 'positive',
       title: '✅ Aprobar → Administración',
-      url: `mailto:${holdedEmail}?subject=${subj}&body=${body_mail}`
+      url: `mailto:${adminEmail}?subject=${subj}&body=${body_mail}`
     });
   }
 
