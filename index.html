@@ -551,7 +551,7 @@
 <!-- ═══════════════════════════════════════════
      TESSERACT.JS (OCR en el navegador)
 ════════════════════════════════════════════ -->
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
 <script>
 // ─────────────────────────────────────────
@@ -721,15 +721,24 @@ async function startOCR() {
     lbl.textContent = 'Cargando motor de lectura...';
     bar.style.width = '8%';
 
-    const worker = await Tesseract.createWorker('spa', 1, {
+    const worker = await Tesseract.createWorker({
       logger: m => {
-        if (m.status === 'recognizing text') {
+        if (m.status === 'loading tesseract core') {
+          lbl.textContent = 'Cargando motor OCR...'; bar.style.width = '15%';
+        } else if (m.status === 'loading language traineddata') {
+          lbl.textContent = 'Cargando idioma español...'; bar.style.width = '35%';
+        } else if (m.status === 'initializing api') {
+          lbl.textContent = 'Inicializando...'; bar.style.width = '50%';
+        } else if (m.status === 'recognizing text') {
           const p = Math.round(m.progress * 100);
-          bar.style.width = (15 + p * 0.75) + '%';
+          bar.style.width = (55 + p * 0.4) + '%';
           lbl.textContent = `Leyendo texto... ${p}%`;
         }
       }
     });
+
+    await worker.loadLanguage('spa');
+    await worker.initialize('spa');
 
     bar.style.width = '90%';
     lbl.textContent = 'Analizando campos...';
