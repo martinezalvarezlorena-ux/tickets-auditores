@@ -603,7 +603,7 @@ function setupFinish() {
   saveConfig({
     nombre:  id('cfg-nombre').value.trim(),
     webhook: id('cfg-webhook').value.trim(),
-    holded:  id('cfg-holded').value.trim(),
+    holded:  id('cfg-holded').value.trim() || 'lorena.martinez@msib.es',
     ocrkey:  id('cfg-ocrkey').value.trim() || 'helloworld',
     ok: true
   });
@@ -920,6 +920,20 @@ async function doSend(cfg) {
   let imageUrl = null;
 
 
+  // Subir foto a imgbb
+  if (capturedData) {
+    lbl.textContent = 'Subiendo foto...';
+    bar.style.width = '30%';
+    try {
+      const imgForm = new FormData();
+      imgForm.append('key', '7281477b825118fcf625946b80cd5aa5');
+      imgForm.append('image', capturedData.split(',')[1]);
+      const imgRes  = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: imgForm });
+      const imgJson = await imgRes.json();
+      if (imgJson.success) imageUrl = imgJson.data.url;
+    } catch (e) { console.warn('imgbb:', e); }
+  }
+
   bar.style.width = '55%';
   lbl.textContent = 'Enviando notificación a Teams...';
 
@@ -974,15 +988,15 @@ function buildCard(t, imageUrl, holdedEmail) {
   if (holdedEmail) {
     const subj = encodeURIComponent(`[APROBADO] ${t.tipo} — ${t.auditor} — ${t.encargo} — ${fechaFmt}`);
     const body_mail = encodeURIComponent(
-      `Ticket aprobado para contabilización en Holded.\n\n` +
+      `Ticket aprobado para gestión.\n\n` +
       `Auditor: ${t.auditor}\nEncargo: ${t.encargo}\nTipo: ${t.tipo}\n` +
       `Importe: ${t.importe} €\nIVA: ${ivaFmt}\nFecha: ${fechaFmt}\n` +
       `Proveedor: ${t.proveedor || '—'}\nNIF/CIF: ${t.nif || '—'}\n\n` +
-      `${imageUrl ? 'Foto del ticket: ' + imageUrl : ''}`
+      `${imageUrl ? '📷 Foto del justificante: ' + imageUrl : 'Sin foto adjunta'}`
     );
     actions.push({
       type: 'Action.OpenUrl', style: 'positive',
-      title: '✅ Aprobar (confirmar al auditor)',
+      title: '✅ Aprobar → Administración',
       url: `mailto:${holdedEmail}?subject=${subj}&body=${body_mail}`
     });
   }
@@ -1119,6 +1133,10 @@ window.addEventListener('load', () => {
   }
   // Ocultar step-3 si existiera
   const s3 = document.getElementById('setup-3'); if(s3) s3.style.display='none';
+  // Email admin pre-configurado
+  if (!getConfig().holded) {
+    const cfgH = id('cfg-holded'); if(cfgH) cfgH.value = 'lorena.martinez@msib.es';
+  }
 });
 </script>
 </body>
