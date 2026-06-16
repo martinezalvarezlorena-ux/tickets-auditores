@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Tickets &amp; Dietas — Auditores</title>
+  <style>
+    :root {
+      --primary: #5B5FC7;
+      --primary-dark: #3B3F9C;
+      --success: #16A34A;
+      --danger: #DC2626;
+      --warning: #D97706;
+      --bg: #F8FAFC;
+      --surface: #FFFFFF;
+      --border: #E2E8F0;
+      --text: #1E293B;
+      --muted: #64748B;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; max-width: 480px; margin: 0 auto;
+    }
+
+    /* ---- HEADER ---- */
+    .header {
+      background: var(--primary); color: white;
+      padding: 14px 18px; display: flex; align-items: center; gap: 12px;
+      position: sticky; top: 0; z-index: 100;
+      box-shadow: 0 2px 8px rgba(91,95,199,0.3);
+    }
+    .header-back { cursor: pointer; font-size: 22px; padding: 2px 6px 2px 0; }
+    .header-title { font-size: 16px; font-weight: 700; }
+    .header-sub   { font-size: 11px; opacity: 0.8; }
+
+    /* ---- SCREENS ---- */
+    .screen { display: none; min-height: calc(100vh - 54px); }
+    .screen.active { display: block; }
+    .content { padding: 16px; }
+
+    /* ---- CARDS ---- */
+    .card {
+      background: var(--surface); border-radius: var(--radius);
+      padding: 16px; margin-bottom: 12px;
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .card-title {
+      font-size: 11px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 12px;
+    }
+
+    /* ---- FORMS ---- */
+    .fg { margin-bottom: 13px; }
+    .label {
+      display: block; font-size: 12px; font-weight: 600;
+      color: var(--muted); margin-bottom: 5px;
+    }
+    .input {
+      width: 100%; padding: 10px 12px;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      font-size: 14px; color: var(--text); background: white;
+      transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .input:focus { outline: none; border-color: var(--primary); }
+    .input.ocr { border-color: #86EFAC; background: #F0FDF4; }
+    select.input {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 10px center;
+      padding-right: 32px;
+    }
+
+    /* ---- BUTTONS ---- */
+    .btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 13px; border: none; border-radius: var(--radius);
+      font-size: 15px; font-weight: 600; cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s; margin-bottom: 10px;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-primary  { background: var(--primary); color: white; }
+    .btn-success  { background: var(--success);  color: white; }
+    .btn-danger   { background: var(--danger);   color: white; }
+    .btn-outline  { background: white; color: var(--primary); border: 1.5px solid var(--primary); }
+    .btn-ghost    { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+
+    /* ---- ALERTS ---- */
+    .alert {
+      border-radius: 8px; padding: 10px 13px;
+      font-size: 11px; line-height: 1.6; margin-bottom: 12px;
+    }
+    .alert-info    { background: #EFF6FF; border: 1px solid #BFDBFE; color: #1E40AF; }
+    .alert-success { background: #F0FDF4; border: 1px solid #BBF7D0; color: #166534; }
+    .alert-warning { background: #FFFBEB; border: 1px solid #FDE68A; color: #92400E; }
+
+    /* ---- CAMERA ---- */
+    .camera-wrap {
+      background: #0F172A; border-radius: var(--radius);
+      overflow: hidden; position: relative;
+      aspect-ratio: 4/3; margin-bottom: 12px; display: none;
+    }
+    #videoEl { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .camera-guide {
+      position: absolute; inset: 14px;
+      border: 2px dashed rgba(255,255,255,0.5);
+      border-radius: 8px; pointer-events: none;
+    }
+    .camera-tip {
+      position: absolute; bottom: 10px; left: 0; right: 0;
+      text-align: center; color: rgba(255,255,255,0.75); font-size: 11px;
+    }
+    #canvasEl { display: none; }
+    #previewImg { width: 100%; border-radius: var(--radius); display: none; margin-bottom: 12px; }
+
+    /* ---- PROGRESS ---- */
+    .progress-card {
+      background: var(--surface); border-radius: var(--radius);
+      padding: 32px 20px; text-align: center;
+      border: 1px solid var(--border); margin-bottom: 12px;
+    }
+    .spinner {
+      width: 48px; height: 48px;
+      border: 4px solid var(--border); border-top-color: var(--primary);
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .progress-label { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+    .progress-track { background: var(--border); border-radius: 4px; height: 6px; overflow: hidden; }
+    .progress-fill  { height: 100%; background: var(--primary); border-radius: 4px; transition: width 0.3s; width: 0%; }
+
+    /* ---- HOME TILES ---- */
+    .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+    .tile {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px 14px;
+      text-align: center; cursor: pointer; transition: transform 0.15s;
+    }
+    .tile:active { transform: scale(0.97); }
+    .tile-icon  { font-size: 28px; margin-bottom: 8px; }
+    .tile-label { font-size: 13px; font-weight: 700; }
+    .tile-sub   { font-size: 10px; color: var(--muted); margin-top: 3px; }
+    .tile-main  { grid-column: span 2; background: var(--primary); border-color: var(--primary); }
+    .tile-main .tile-label { color: white; font-size: 15px; }
+    .tile-main .tile-sub   { color: rgba(255,255,255,0.7); }
+
+    /* ---- BADGE ---- */
+    .badge {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 20px;
+    }
+    .badge-orange { background: #FEF3C7; color: #92400E; }
+    .badge-green  { background: #DCFCE7; color: #166534; }
+    .badge-red    { background: #FEE2E2; color: #991B1B; }
+
+    /* ---- HISTORY ---- */
+    .h-item {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 12px 14px;
+      margin-bottom: 8px; display: flex; gap: 12px; align-items: center;
+    }
+    .h-icon  { font-size: 26px; flex-shrink: 0; }
+    .h-info  { flex: 1; min-width: 0; }
+    .h-title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .h-sub   { font-size: 11px; color: var(--muted); }
+    .h-amt   { font-size: 15px; font-weight: 700; color: var(--primary); flex-shrink: 0; }
+
+    /* ---- SETUP DOTS ---- */
+    .dots { display: flex; justify-content: center; gap: 6px; margin-bottom: 20px; }
+    .dot  { width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: background 0.2s; }
+    .dot.active { background: var(--primary); }
+    .setup-step { display: none; }
+    .setup-step.active { display: block; }
+    .s-num {
+      width: 38px; height: 38px; background: var(--primary); color: white;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 18px; font-weight: 700; margin: 0 auto 16px;
+    }
+    .s-title { font-size: 19px; font-weight: 700; text-align: center; margin-bottom: 8px; }
+    .s-desc  { font-size: 13px; color: var(--muted); text-align: center; margin-bottom: 20px; line-height: 1.6; }
+
+    /* ---- SUCCESS ---- */
+    .ok-icon  { font-size: 72px; text-align: center; margin: 28px 0 10px; }
+    .ok-title { font-size: 22px; font-weight: 700; text-align: center; margin-bottom: 8px; }
+    .ok-sub   { font-size: 13px; color: var(--muted); text-align: center; margin-bottom: 24px; line-height: 1.5; }
+
+    /* ---- TOAST ---- */
+    .toast {
+      position: fixed; bottom: 20px; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #1E293B; color: white;
+      padding: 10px 20px; border-radius: 24px;
+      font-size: 13px; font-weight: 500; z-index: 999;
+      transition: transform 0.3s; white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ---- DIVIDER ---- */
+    .or { text-align: center; font-size: 12px; color: var(--muted); margin: -2px 0 8px; }
+  </style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════════════════════════════════════
+     PANTALLA: CONFIGURACIÓN INICIAL
+════════════════════════════════════════════ -->
+<div class="screen active" id="screen-setup">
+  <div class="header">
+    <div>
+      <div class="header-title">🧾 Tickets &amp; Dietas</div>
+      <div class="header-sub">Configuración inicial</div>
+    </div>
+  </div>
+  <div class="content">
+    <div class="dots">
+      <div class="dot active" id="dot-1"></div>
+      <div class="dot" id="dot-2"></div>
+      <div class="dot" id="dot-3"></div>
+    </div>
+
+    <!-- Paso 1: Nombre -->
+    <div class="setup-step active" id="setup-1">
+      <div class="s-num">1</div>
+      <div class="s-title">¿Quién eres?</div>
+      <div class="s-desc">Tu nombre aparecerá en cada ticket enviado a administración.</div>
+      <div class="fg">
+        <label class="label">Nombre completo</label>
+        <input class="input" id="cfg-nombre" type="text" placeholder="Ej: Carlos Martínez López" autocomplete="name">
+      </div>
+      <button class="btn btn-primary" onclick="setupNext(1)">Continuar →</button>
+    </div>
+
+    <!-- Paso 2: Teams + Holded -->
+    <div class="setup-step" id="setup-2">
+      <div class="s-num">2</div>
+      <div class="s-title">Conectar con Teams y Holded</div>
+      <div class="s-desc">Necesitas la URL del Webhook de Teams y el email de tu bandeja de Holded.</div>
+      <div class="alert alert-info">
+        <strong>Crear Webhook en Teams (2 min):</strong><br>
+        1. Abre el canal de administración en Teams<br>
+        2. Haz clic en ··· junto al nombre del canal<br>
+        3. Conectores → Incoming Webhook → Configurar<br>
+        4. Nombre: "Tickets Auditores" → Crear<br>
+        5. Copia la URL y pégala abajo
+      </div>
+      <div class="fg">
+        <label class="label">URL del Incoming Webhook de Teams *</label>
+        <input class="input" id="cfg-webhook" type="url" placeholder="https://xxxx.webhook.office.com/...">
+      </div>
+      <div class="fg">
+        <label class="label">Email Holded Inbox (@holdedbox.com) *</label>
+        <input class="input" id="cfg-holded" type="email" placeholder="tuempresa@holdedbox.com">
+      </div>
+      <button class="btn btn-primary" onclick="setupNext(2)">Continuar →</button>
+      <button class="btn btn-ghost" onclick="setupPrev(2)">← Atrás</button>
+    </div>
+
+    <!-- Paso 3: imgbb (opcional) -->
+    <div class="setup-step" id="setup-3">
+      <div class="s-num">3</div>
+      <div class="s-title">Foto en la notificación</div>
+      <div class="s-desc">Para que la tarjeta de Teams incluya la foto del ticket, configura una clave gratuita de imgbb.</div>
+      <div class="alert alert-info">
+        <strong>Obtener API Key gratuita (1 min):</strong><br>
+        1. Ve a <strong>imgbb.com</strong> → Regístrate (gratis, sin tarjeta)<br>
+        2. Ve a <strong>api.imgbb.com</strong> → Copia tu API Key
+      </div>
+      <div class="fg">
+        <label class="label">API Key de imgbb.com (opcional pero recomendado)</label>
+        <input class="input" id="cfg-imgbb" type="text" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+      </div>
+      <div class="alert alert-warning">Sin esta clave, las notificaciones en Teams no incluirán la foto del ticket.</div>
+      <button class="btn btn-success" onclick="setupFinish()">✅ Guardar y empezar</button>
+      <button class="btn btn-ghost" onclick="setupPrev(3)">← Atrás</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PANTALLA: HOME
+════════════════════════════════════════════ -->
+<div class="screen" id="screen-home">
+  <div class="header">
+    <div>
+      <div class="header-title">🧾 Tickets &amp; Dietas</div>
+      <div class="header-sub" id="home-name">—</div>
+    </div>
+  </div>
+  <div class="content">
+    <div class="tiles">
+      <div class="tile tile-main" onclick="goTo('screen-capture')">
+        <div class="tile-icon">📸</div>
+        <div class="tile-label">Nuevo Ticket</div>
+        <div class="tile-sub">Foto y envío a administración</div>
+      </div>
+      <div class="tile" onclick="goTo('screen-history')">
+        <div class="tile-icon">📋</div>
+        <div class="tile-label">Mis envíos</div>
+        <div class="tile-sub">Historial</div>
+      </div>
+      <div class="tile" onclick="goTo('screen-settings')">
+        <div class="tile-icon">⚙️</div>
+        <div class="tile-label">Ajustes</div>
+        <div class="tile-sub">Configuración</div>
+      </div>
+    </div>
+    <div class="alert alert-warning" id="home-warn" style="display:none"></div>
+    <div class="card">
+      <div class="card-title">Límites dietas exentas IRPF 2025</div>
+      <div style="font-size:12px;line-height:2">
+        🍽️ Manutención España: <strong>26,67 €/día</strong><br>
+        🍽️ Manutención extranjero: <strong>48,08 €/día</strong><br>
+        🏨 Hotel España: <strong>53,34 €</strong><br>
+        🏨 Hotel extranjero: <strong>91,35 €</strong>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PANTALLA: CAPTURA
+════════════════════════════════════════════ -->
+<div class="screen" id="screen-capture">
+  <div class="header">
+    <span class="header-back" onclick="goBack()">←</span>
+    <div>
+      <div class="header-title">Nuevo ticket</div>
+      <div class="header-sub">Paso 1/3 — Foto del justificante</div>
+    </div>
+  </div>
+  <div class="content">
+    <div class="camera-wrap" id="camera-wrap">
+      <video id="videoEl" autoplay playsinline muted></video>
+      <canvas id="canvasEl"></canvas>
+      <div class="camera-guide"></div>
+      <div class="camera-tip">Encuadra el ticket completo</div>
+    </div>
+
+    <img id="previewImg" alt="Vista previa">
+
+    <div id="btns-captura">
+      <button class="btn btn-primary" onclick="startCamera()">📷 Usar la cámara</button>
+      <div class="or">o</div>
+      <label class="btn btn-outline" style="cursor:pointer;margin-bottom:10px">
+        🖼️ Subir imagen del carrete
+        <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="handleFile(this)">
+      </label>
+    </div>
+
+    <button class="btn btn-primary" id="btn-capturar" style="display:none" onclick="capturePhoto()">📸 Hacer foto</button>
+    <button class="btn btn-success" id="btn-procesar" style="display:none" onclick="startOCR()">🔍 Leer ticket con OCR →</button>
+    <button class="btn btn-ghost"   id="btn-reintentar" style="display:none" onclick="resetCapture()">↩ Repetir foto</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PANTALLA: OCR EN PROCESO
+════════════════════════════════════════════ -->
+<div class="screen" id="screen-ocr">
+  <div class="header">
+    <div>
+      <div class="header-title">Leyendo ticket...</div>
+      <div class="header-sub">OCR en proceso</div>
+    </div>
+  </div>
+  <div class="content">
+    <div class="progress-card">
+      <div class="spinner"></div>
+      <div class="progress-label" id="ocr-label">Iniciando OCR...</div>
+      <div class="progress-track"><div class="progress-fill" id="ocr-bar"></div></div>
+    </div>
+    <div class="alert alert-info">El motor OCR lee el texto del ticket automáticamente en tu propio dispositivo, sin enviar datos a ningún servidor externo.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PANTALLA: REVISIÓN DE DATOS
+════════════════════════════════════════════ -->
+<div class="screen" id="screen-review">
+  <div class="header">
+    <span class="header-back" onclick="goTo('screen-capture')">←</span>
+    <div>
+      <div class="header-title">Revisar datos</div>
+      <div class="header-sub">Paso 2/3 — Confirma o corrige</div>
+    </div>
+  </div>
+  <div class="content">
+    <div class="alert" id="ocr-quality">✅ Datos extraídos. Revisa y corrige si es necesario.</div>
+
+    <div class="card">
+      <div class="card-title">📋 Datos del justificante</div>
+      <div class="fg">
+        <label class="label">Tipo de gasto *</label>
+        <select class="input" id="f-tipo" onchange="checkIRPF()">
+          <option value="">— Selecciona —</option>
+          <option value="🏨 Hotel">🏨 Hotel / Alojamiento</option>
+          <option value="🍽️ Dieta">🍽️ Manutención / Restaurante</option>
+          <option value="🚕 Transporte">🚕 Taxi / Transporte urbano</option>
+          <option value="🚂 Tren/Avión">🚂 Tren / Avión</option>
+          <option value="🚗 Combustible">🚗 Combustible / Peaje</option>
+          <option value="📦 Otros">📦 Otros gastos</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label class="label">Importe total (€) *</label>
+        <input class="input" id="f-importe" type="number" step="0.01" placeholder="0.00" oninput="checkIRPF()">
+      </div>
+      <div class="fg">
+        <label class="label">Fecha del gasto *</label>
+        <input class="input" id="f-fecha" type="date">
+      </div>
+      <div class="fg">
+        <label class="label">Proveedor / Establecimiento</label>
+        <input class="input" id="f-proveedor" type="text" placeholder="Hotel Meliá, Restaurante Casa Juan...">
+      </div>
+      <div class="fg">
+        <label class="label">NIF / CIF del proveedor</label>
+        <input class="input" id="f-nif" type="text" placeholder="Ej: B12345678">
+      </div>
+      <div class="fg">
+        <label class="label">Tipo de IVA</label>
+        <select class="input" id="f-iva">
+          <option value="">No especificado</option>
+          <option value="21">21% — General</option>
+          <option value="10">10% — Reducido (restaurantes, transporte)</option>
+          <option value="4">4% — Superreducido</option>
+          <option value="0">0% / Exento</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🏢 Imputación del encargo</div>
+      <div class="fg">
+        <label class="label">Cliente / Encargo de auditoría *</label>
+        <input class="input" id="f-encargo" type="text" placeholder="Ej: Auditoría ABC S.L. 2025">
+      </div>
+      <div class="fg">
+        <label class="label">Observaciones</label>
+        <input class="input" id="f-notas" type="text" placeholder="Motivo del desplazamiento...">
+      </div>
+    </div>
+
+    <div class="alert alert-warning" id="irpf-warn" style="display:none"></div>
+
+    <button class="btn btn-success" onclick="submitTicket()">✅ Enviar a administración →</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PANTALLA: ENVIANDO
+════════════════════════════════════════════ -->
+<div class="screen" id="screen-sending">
+  <div class="header">
+    <div>
+      <div class="header-title">Enviando ticket...</div>
+      <div class="header-sub">Paso 3/3</div>
+    </div>
+  </div>
+  <div class="content">
+    <div class="progress-card">
+      <div class="spinner"></div>
+      <div class="progress-label" id="send-label">Procesando...</div>
+      <div class="progress-track"><div class="progress-fill" id="send-bar"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PANTALLA: ÉXITO
+════════════════════════════════════════════ -->
+<div class="screen" id="screen-success">
+  <div class="header">
+    <div>
+      <div class="header-title">Ticket enviado</div>
+      <div class="header-sub">Pendiente de validación</div>
+    </div>
+  </div>
+  <div class="content">
+    <div class="ok-icon">✅</div>
+    <div class="ok-title">¡Ticket enviado!</div>
+    <div class="ok-sub" id="ok-msg">Tu ticket ha sido enviado a administración. Recibirás confirmación cuando sea validado.</div>
+    <div class="card" id="ok-detail"></div>
+    <button class="btn btn-primary" onclick="goTo('screen-home'); resetAll()">📸 Enviar otro ticket</button>
+    <button class="btn btn-ghost"   onclick="goTo('screen-history')">Ver mis envíos</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PANTALLA: HISTORIAL
+════════════════════════════════════════════ -->
+<div class="screen" id="screen-history">
+  <div class="header">
+    <span class="header-back" onclick="goBack()">←</span>
+    <div>
+      <div class="header-title">Mis envíos</div>
+      <div class="header-sub">Historial de tickets</div>
+    </div>
+  </div>
+  <div class="content" id="history-content"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PANTALLA: AJUSTES
+════════════════════════════════════════════ -->
+<div class="screen" id="screen-settings">
+  <div class="header">
+    <span class="header-back" onclick="goBack()">←</span>
+    <div>
+      <div class="header-title">Ajustes</div>
+      <div class="header-sub">Configuración de la app</div>
+    </div>
+  </div>
+  <div class="content">
+    <div class="card">
+      <div class="card-title">Auditor</div>
+      <div class="fg">
+        <label class="label">Nombre completo</label>
+        <input class="input" id="s-nombre" type="text">
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Integración</div>
+      <div class="fg">
+        <label class="label">Teams Webhook URL</label>
+        <input class="input" id="s-webhook" type="url">
+      </div>
+      <div class="fg">
+        <label class="label">Email Holded Inbox</label>
+        <input class="input" id="s-holded" type="email">
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Foto en notificaciones (imgbb.com)</div>
+      <div class="fg">
+        <label class="label">API Key imgbb (gratuita)</label>
+        <input class="input" id="s-imgbb" type="text">
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="saveSettings()">💾 Guardar ajustes</button>
+    <button class="btn btn-danger"  onclick="clearHistory()">🗑️ Borrar historial local</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     TESSERACT.JS (OCR en el navegador)
+════════════════════════════════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+<script>
+// ─────────────────────────────────────────
+//  CONFIG & STORAGE
+// ─────────────────────────────────────────
+const CFG_KEY  = 'td_config';
+const HIST_KEY = 'td_history';
+
+const getConfig  = () => { try { return JSON.parse(localStorage.getItem(CFG_KEY))  || {}; } catch { return {}; } };
+const getHistory = () => { try { return JSON.parse(localStorage.getItem(HIST_KEY)) || []; } catch { return []; } };
+const saveConfig = cfg => localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+
+function addHistory(ticket) {
+  const h = getHistory();
+  h.unshift({ ...ticket, id: Date.now(), sentAt: new Date().toISOString() });
+  localStorage.setItem(HIST_KEY, JSON.stringify(h.slice(0, 60)));
+}
+
+// ─────────────────────────────────────────
+//  NAVIGATION
+// ─────────────────────────────────────────
+let currentScreen = 'screen-setup';
+let navStack = [];
+
+function goTo(id) {
+  if (id === currentScreen) return;
+  navStack.push(currentScreen);
+  document.getElementById(currentScreen).classList.remove('active');
+  document.getElementById(id).classList.add('active');
+  currentScreen = id;
+  if (id === 'screen-home')     initHome();
+  if (id === 'screen-history')  renderHistory();
+  if (id === 'screen-settings') loadSettings();
+  window.scrollTo(0, 0);
+}
+
+function goBack() {
+  const prev = navStack.pop() || 'screen-home';
+  document.getElementById(currentScreen).classList.remove('active');
+  document.getElementById(prev).classList.add('active');
+  currentScreen = prev;
+  window.scrollTo(0, 0);
+}
+
+// ─────────────────────────────────────────
+//  SETUP WIZARD
+// ─────────────────────────────────────────
+function setupNext(step) {
+  const ok = {
+    1: () => { if (!id('cfg-nombre').value.trim()) { toast('Introduce tu nombre'); return false; } return true; },
+    2: () => {
+      if (!id('cfg-webhook').value.trim()) { toast('Introduce la URL del webhook de Teams'); return false; }
+      if (!id('cfg-holded').value.trim())  { toast('Introduce el email de Holded');          return false; }
+      return true;
+    }
+  };
+  if (ok[step] && !ok[step]()) return;
+  id(`setup-${step}`).classList.remove('active');
+  id(`dot-${step}`).classList.remove('active');
+  id(`setup-${step+1}`).classList.add('active');
+  id(`dot-${step+1}`).classList.add('active');
+}
+
+function setupPrev(step) {
+  id(`setup-${step}`).classList.remove('active');
+  id(`dot-${step}`).classList.remove('active');
+  id(`setup-${step-1}`).classList.add('active');
+  id(`dot-${step-1}`).classList.add('active');
+}
+
+function setupFinish() {
+  saveConfig({
+    nombre:  id('cfg-nombre').value.trim(),
+    webhook: id('cfg-webhook').value.trim(),
+    holded:  id('cfg-holded').value.trim(),
+    imgbb:   id('cfg-imgbb').value.trim(),
+    ok: true
+  });
+  goTo('screen-home');
+}
+
+// ─────────────────────────────────────────
+//  HOME
+// ─────────────────────────────────────────
+function initHome() {
+  const cfg = getConfig();
+  id('home-name').textContent = cfg.nombre || 'Auditor';
+  const w = id('home-warn');
+  if (!cfg.imgbb) {
+    w.style.display = 'block';
+    w.innerHTML = '⚠️ Sin API key de imgbb las fotos no aparecerán en Teams. <u style="cursor:pointer" onclick="goTo(\'screen-settings\')">Configurar</u>';
+  } else {
+    w.style.display = 'none';
+  }
+}
+
+// ─────────────────────────────────────────
+//  CAMERA
+// ─────────────────────────────────────────
+let stream = null;
+let capturedData = null;
+
+async function startCamera() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 } }
+    });
+    id('videoEl').srcObject = stream;
+    id('camera-wrap').style.display = 'block';
+    id('btns-captura').style.display = 'none';
+    id('btn-capturar').style.display = 'flex';
+  } catch {
+    toast('Cámara no disponible. Sube una imagen.');
+  }
+}
+
+function stopCamera() {
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  id('camera-wrap').style.display = 'none';
+}
+
+function capturePhoto() {
+  const v = id('videoEl'), c = id('canvasEl');
+  c.width = v.videoWidth; c.height = v.videoHeight;
+  c.getContext('2d').drawImage(v, 0, 0);
+  capturedData = c.toDataURL('image/jpeg', 0.88);
+  stopCamera();
+  showPreview();
+}
+
+function handleFile(input) {
+  const f = input.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = e => { capturedData = e.target.result; showPreview(); };
+  reader.readAsDataURL(f);
+}
+
+function showPreview() {
+  id('previewImg').src = capturedData;
+  id('previewImg').style.display = 'block';
+  id('btns-captura').style.display = 'none';
+  id('btn-capturar').style.display = 'none';
+  id('btn-procesar').style.display = 'flex';
+  id('btn-reintentar').style.display = 'flex';
+}
+
+function resetCapture() {
+  capturedData = null;
+  id('previewImg').style.display = 'none';
+  id('btn-procesar').style.display = 'none';
+  id('btn-reintentar').style.display = 'none';
+  id('btns-captura').style.display = 'block';
+  id('btn-capturar').style.display = 'none';
+  id('fileInput').value = '';
+}
+
+// ─────────────────────────────────────────
+//  OCR CON TESSERACT.JS
+// ─────────────────────────────────────────
+async function startOCR() {
+  if (!capturedData) return;
+  goTo('screen-ocr');
+  const lbl = id('ocr-label'), bar = id('ocr-bar');
+
+  try {
+    lbl.textContent = 'Cargando motor de lectura...';
+    bar.style.width = '8%';
+
+    const worker = await Tesseract.createWorker('spa', 1, {
+      logger: m => {
+        if (m.status === 'recognizing text') {
+          const p = Math.round(m.progress * 100);
+          bar.style.width = (15 + p * 0.75) + '%';
+          lbl.textContent = `Leyendo texto... ${p}%`;
+        }
+      }
+    });
+
+    bar.style.width = '90%';
+    lbl.textContent = 'Analizando campos...';
+
+    const { data: { text } } = await worker.recognize(capturedData);
+    await worker.terminate();
+
+    bar.style.width = '100%';
+    lbl.textContent = '¡Completado!';
+
+    fillForm(parseTicket(text));
+    await sleep(400);
+    goTo('screen-review');
+
+  } catch (err) {
+    console.error(err);
+    toast('Error en OCR. Rellena los datos manualmente.');
+    fillForm({});
+    goTo('screen-review');
+  }
+}
+
+// ─────────────────────────────────────────
+//  PARSER DE TICKET ESPAÑOL
+// ─────────────────────────────────────────
+function parseTicket(raw) {
+  const t = {};
+  const text = raw.replace(/\n+/g, '\n');
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+  // Importe total
+  const importeRx = [
+    /TOTAL\s+A\s+PAGAR[\s:]*([0-9]+[.,][0-9]{2})/i,
+    /TOTAL[\s:]*([0-9]+[.,][0-9]{2})\s*€?/i,
+    /IMPORTE[\s:]*([0-9]+[.,][0-9]{2})/i,
+    /([0-9]+[.,][0-9]{2})\s*€/,
+  ];
+  for (const rx of importeRx) {
+    const m = text.match(rx);
+    if (m) { t.importe = m[1].replace(',', '.'); break; }
+  }
+
+  // Fecha
+  const fechaRx = [
+    /(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})/,
+    /(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2})(?!\d)/,
+  ];
+  for (const rx of fechaRx) {
+    const m = text.match(rx);
+    if (m) {
+      const y = m[3].length === 2 ? '20' + m[3] : m[3];
+      t.fecha = `${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+      break;
+    }
+  }
+
+  // NIF/CIF
+  const nifM = text.match(/\b([A-HJ-NP-SUVW]\d{7}[0-9A-J]|\d{8}[A-Z]|[XYZ]\d{7}[A-Z])\b/i);
+  if (nifM) t.nif = nifM[1].toUpperCase();
+
+  // IVA
+  if (/IVA\s*21/i.test(text)) t.iva = '21';
+  else if (/IVA\s*10/i.test(text)) t.iva = '10';
+  else if (/IVA\s*4/i.test(text))  t.iva = '4';
+
+  // Proveedor (primera línea de texto sustancial)
+  for (const line of lines.slice(0, 6)) {
+    if (line.length > 3 && !/^\d/.test(line) && !/^[A-Z]{1,2}\d/.test(line)) {
+      t.proveedor = line.substring(0, 60); break;
+    }
+  }
+
+  // Tipo heurístico
+  const lo = text.toLowerCase();
+  if (/hotel|hostal|pensión|alojamiento|habitac/.test(lo))          t.tipo = '🏨 Hotel';
+  else if (/restaur|cafeter|comida|cena|almuerzo|burger|pizza/.test(lo)) t.tipo = '🍽️ Dieta';
+  else if (/taxi|uber|cabify/.test(lo))                              t.tipo = '🚕 Transporte';
+  else if (/renfe|ave|iberia|vueling|ryanair|tren|vuelo|avión/.test(lo)) t.tipo = '🚂 Tren/Avión';
+  else if (/gasolina|diesel|bp|repsol|cepsa|peaje/.test(lo))        t.tipo = '🚗 Combustible';
+
+  return t;
+}
+
+// ─────────────────────────────────────────
+//  FORMULARIO DE REVISIÓN
+// ─────────────────────────────────────────
+function fillForm(d) {
+  const fields = ['f-tipo','f-importe','f-fecha','f-proveedor','f-nif','f-iva','f-encargo','f-notas'];
+  fields.forEach(fid => { id(fid).value = ''; id(fid).classList.remove('ocr'); });
+
+  const set = (fid, val, isOcr = true) => {
+    if (val) { id(fid).value = val; if (isOcr) id(fid).classList.add('ocr'); }
+  };
+
+  set('f-tipo',      d.tipo);
+  set('f-importe',   d.importe);
+  set('f-fecha',     d.fecha || new Date().toISOString().split('T')[0], !!d.fecha);
+  set('f-proveedor', d.proveedor);
+  set('f-nif',       d.nif);
+  set('f-iva',       d.iva);
+
+  // Calidad OCR
+  const extracted = [d.importe, d.fecha, d.nif].filter(Boolean).length;
+  const q = id('ocr-quality');
+  if (extracted >= 2) {
+    q.className = 'alert alert-success';
+    q.innerHTML = '✅ OCR extrajo los datos. Revisa antes de enviar.';
+  } else {
+    q.className = 'alert alert-warning';
+    q.innerHTML = '⚠️ Baja confianza OCR. Comprueba y rellena los campos vacíos.';
+  }
+  id('irpf-warn').style.display = 'none';
+}
+
+function checkIRPF() {
+  const tipo    = id('f-tipo').value;
+  const importe = parseFloat(id('f-importe').value) || 0;
+  const w       = id('irpf-warn');
+  let limite = 0, label = '';
+  if (tipo.includes('Dieta')) { limite = 26.67; label = 'Manutención España'; }
+  else if (tipo.includes('Hotel')) { limite = 53.34; label = 'Hotel España'; }
+  if (limite > 0 && importe > limite) {
+    w.style.display = 'block';
+    w.innerHTML = `⚠️ <strong>Aviso IRPF:</strong> El límite exento para "${label}" es <strong>${limite}€/día</strong>. El exceso de <strong>${(importe - limite).toFixed(2)}€</strong> puede tributar como renta del trabajo (art. 9 RIRPF).`;
+  } else {
+    w.style.display = 'none';
+  }
+}
+
+// ─────────────────────────────────────────
+//  ENVÍO
+// ─────────────────────────────────────────
+let ticket = {};
+
+async function submitTicket() {
+  const tipo    = id('f-tipo').value;
+  const importe = id('f-importe').value;
+  const fecha   = id('f-fecha').value;
+  const encargo = id('f-encargo').value.trim();
+  if (!tipo)    { toast('Selecciona el tipo de gasto');  return; }
+  if (!importe) { toast('Introduce el importe');         return; }
+  if (!fecha)   { toast('Introduce la fecha');           return; }
+  if (!encargo) { toast('Introduce el encargo/cliente'); return; }
+
+  const cfg = getConfig();
+  ticket = {
+    tipo, importe, fecha, encargo,
+    proveedor: id('f-proveedor').value,
+    nif:       id('f-nif').value,
+    iva:       id('f-iva').value,
+    notas:     id('f-notas').value,
+    auditor:   cfg.nombre || 'Sin nombre',
+    status:    'pendiente'
+  };
+
+  goTo('screen-sending');
+  await doSend(cfg);
+}
+
+async function doSend(cfg) {
+  const lbl = id('send-label'), bar = id('send-bar');
+  let imageUrl = null;
+
+  // 1. Subir foto a imgbb
+  if (cfg.imgbb && capturedData) {
+    lbl.textContent = 'Subiendo foto...';
+    bar.style.width = '25%';
+    try {
+      const form = new FormData();
+      form.append('key', cfg.imgbb);
+      form.append('image', capturedData.split(',')[1]);
+      const res  = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: form });
+      const json = await res.json();
+      if (json.success) imageUrl = json.data.url;
+    } catch (e) { console.warn('imgbb:', e); }
+  }
+
+  bar.style.width = '55%';
+  lbl.textContent = 'Enviando notificación a Teams...';
+
+  // 2. Teams webhook
+  if (cfg.webhook) {
+    try {
+      await fetch(cfg.webhook, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildCard(ticket, imageUrl, cfg.holded))
+      });
+    } catch (e) { console.warn('Teams webhook:', e); }
+  }
+
+  bar.style.width = '90%';
+  lbl.textContent = 'Guardando...';
+  addHistory({ ...ticket, imageUrl });
+  bar.style.width = '100%';
+  await sleep(400);
+  showSuccess();
+}
+
+// ─────────────────────────────────────────
+//  TARJETA ADAPTATIVA TEAMS
+// ─────────────────────────────────────────
+function buildCard(t, imageUrl, holdedEmail) {
+  const fechaFmt = t.fecha ? t.fecha.split('-').reverse().join('/') : '—';
+  const ivaFmt   = t.iva ? `${t.iva}%` : '—';
+
+  const body = [
+    { type: 'TextBlock', size: 'Large', weight: 'Bolder', wrap: true,
+      text: `🧾 Ticket pendiente de validación` },
+    { type: 'FactSet', facts: [
+      { title: 'Auditor',       value: t.auditor },
+      { title: 'Encargo',       value: t.encargo },
+      { title: 'Tipo',          value: t.tipo },
+      { title: 'Importe',       value: `${t.importe} €` },
+      { title: 'IVA',           value: ivaFmt },
+      { title: 'Fecha',         value: fechaFmt },
+      { title: 'Proveedor',     value: t.proveedor || '—' },
+      { title: 'NIF/CIF',       value: t.nif || '—' },
+      { title: 'Observaciones', value: t.notas || '—' },
+    ]}
+  ];
+
+  if (imageUrl) {
+    body.splice(1, 0, { type: 'Image', url: imageUrl, size: 'Large', altText: 'Foto del ticket' });
+  }
+
+  // Botón Aprobar → abre email a Holded pre-relleno
+  const actions = [];
+  if (holdedEmail) {
+    const subj = encodeURIComponent(`[APROBADO] ${t.tipo} — ${t.auditor} — ${t.encargo} — ${fechaFmt}`);
+    const body_mail = encodeURIComponent(
+      `Ticket aprobado para contabilización en Holded.\n\n` +
+      `Auditor: ${t.auditor}\nEncargo: ${t.encargo}\nTipo: ${t.tipo}\n` +
+      `Importe: ${t.importe} €\nIVA: ${ivaFmt}\nFecha: ${fechaFmt}\n` +
+      `Proveedor: ${t.proveedor || '—'}\nNIF/CIF: ${t.nif || '—'}\n\n` +
+      `${imageUrl ? 'Foto del ticket: ' + imageUrl : ''}`
+    );
+    actions.push({
+      type: 'Action.OpenUrl', style: 'positive',
+      title: '✅ Aprobar → enviar a Holded',
+      url: `mailto:${holdedEmail}?subject=${subj}&body=${body_mail}`
+    });
+  }
+
+  actions.push({
+    type: 'Action.OpenUrl', style: 'destructive',
+    title: '❌ Rechazar (comunicar al auditor)',
+    url: `mailto:?subject=${encodeURIComponent('Ticket rechazado — ' + t.tipo + ' ' + fechaFmt)}&body=${encodeURIComponent('Hola ' + t.auditor + ',\n\nTu ticket ha sido rechazado.\n\nMotivo: ')}`
+  });
+
+  return {
+    type: 'message',
+    attachments: [{
+      contentType: 'application/vnd.microsoft.card.adaptive',
+      contentUrl: null,
+      content: {
+        $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
+        type: 'AdaptiveCard', version: '1.4',
+        body, actions
+      }
+    }]
+  };
+}
+
+// ─────────────────────────────────────────
+//  ÉXITO
+// ─────────────────────────────────────────
+function showSuccess() {
+  goTo('screen-success');
+  const t = ticket;
+  const fechaFmt = t.fecha ? t.fecha.split('-').reverse().join('/') : '—';
+  id('ok-detail').innerHTML = `
+    <div class="card-title">Resumen del ticket enviado</div>
+    <div style="font-size:12px;line-height:2.2">
+      <div><strong>Tipo:</strong> ${t.tipo}</div>
+      <div><strong>Importe:</strong> ${t.importe} €</div>
+      <div><strong>Fecha:</strong> ${fechaFmt}</div>
+      <div><strong>Encargo:</strong> ${t.encargo}</div>
+      <div><strong>Estado:</strong> <span class="badge badge-orange">⏳ Pendiente de validación</span></div>
+    </div>
+  `;
+}
+
+function resetAll() {
+  capturedData = null;
+  ticket = {};
+  resetCapture();
+}
+
+// ─────────────────────────────────────────
+//  HISTORIAL
+// ─────────────────────────────────────────
+function renderHistory() {
+  const h = getHistory();
+  const el = id('history-content');
+  if (!h.length) {
+    el.innerHTML = '<div class="alert alert-info">Aún no has enviado ningún ticket desde este dispositivo.</div>';
+    return;
+  }
+  el.innerHTML = h.map(t => {
+    const fecha = t.fecha ? t.fecha.split('-').reverse().join('/') : '—';
+    const icon  = t.tipo ? t.tipo.split(' ')[0] : '📄';
+    const badge = t.status === 'pendiente'
+      ? '<span class="badge badge-orange">⏳ Pendiente</span>'
+      : '<span class="badge badge-green">✅ Aprobado</span>';
+    return `
+      <div class="h-item">
+        <div class="h-icon">${icon}</div>
+        <div class="h-info">
+          <div class="h-title">${t.encargo || 'Sin encargo'}</div>
+          <div class="h-sub">${fecha} · ${t.proveedor || t.tipo || '—'}</div>
+          <div style="margin-top:4px">${badge}</div>
+        </div>
+        <div class="h-amt">${t.importe ? t.importe + '€' : '—'}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ─────────────────────────────────────────
+//  AJUSTES
+// ─────────────────────────────────────────
+function loadSettings() {
+  const c = getConfig();
+  id('s-nombre').value  = c.nombre  || '';
+  id('s-webhook').value = c.webhook || '';
+  id('s-holded').value  = c.holded  || '';
+  id('s-imgbb').value   = c.imgbb   || '';
+}
+
+function saveSettings() {
+  const c = getConfig();
+  c.nombre  = id('s-nombre').value.trim();
+  c.webhook = id('s-webhook').value.trim();
+  c.holded  = id('s-holded').value.trim();
+  c.imgbb   = id('s-imgbb').value.trim();
+  saveConfig(c);
+  toast('✅ Ajustes guardados');
+}
+
+function clearHistory() {
+  if (confirm('¿Borrar el historial local?')) {
+    localStorage.removeItem(HIST_KEY);
+    renderHistory();
+    toast('Historial borrado');
+  }
+}
+
+// ─────────────────────────────────────────
+//  UTILIDADES
+// ─────────────────────────────────────────
+const id = s => document.getElementById(s);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function toast(msg) {
+  const el = id('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ─────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────
+window.addEventListener('load', () => {
+  if (getConfig().ok) goTo('screen-home');
+  id('f-fecha').value = new Date().toISOString().split('T')[0];
+  // Webhook pre-configurado
+  if (!getConfig().webhook) {
+    id('cfg-webhook').value = 'https://default7234753fa63c44529fc6ed2aad65b8.14.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/cd41f32648b14523bcd49e732130f389/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HIsvpLRGmtcluyfF5iRmWLRHDc5-fCP5AY7e__PCpoM';
+  }
+});
+</script>
+</body>
+</html>
