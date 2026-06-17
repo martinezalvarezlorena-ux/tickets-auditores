@@ -1149,7 +1149,7 @@ function updateSelBar() {
   }
 }
 
-function generateParte() {
+async function generateParte() {
   if (selectedTickets.size === 0) { toast('Selecciona al menos un ticket'); return; }
   const h = getHistory();
   const sel = h.filter(t => selectedTickets.has(t.id));
