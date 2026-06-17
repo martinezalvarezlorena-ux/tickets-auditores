@@ -1229,4 +1229,136 @@ async function generateParte() {
         <div class="section-box">
           <div class="section-title">5. RESUMEN</div>
           <table class="info-table">
-            <tr><td class=
+            <tr><td class=="lbl">Transporte / Desplaz.</td><td class="num">${totTransporte.toFixed(2)} €</td><td class="lbl">Alojamiento</td><td class="num">${totAlojamiento.toFixed(2)} €</td></tr>
+            <tr><td class="lbl">Dietas / Manutención</td><td class="num">${totDietas.toFixed(2)} €</td><td class="lbl">Otros gastos</td><td class="num">${totOtros.toFixed(2)} €</td></tr>
+            <tr><td class="lbl" colspan="3"><strong>TOTAL PARTE</strong></td><td class="num"><strong>${totGeneral.toFixed(2)} €</strong></td></tr>
+          </table>
+        </div>
+        <div class="section-box">
+          <div class="section-title">6. FIRMAS</div>
+          <table class="info-table">
+            <tr><td class="lbl">Empleado</td><td style="height:40px"></td><td class="lbl">Aprobado por</td><td style="height:40px"></td></tr>
+            <tr><td class="lbl">Fecha</td><td></td><td class="lbl">Fecha</td><td></td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="section-box" style="margin-top:16px;background:#F8FAFC">
+        <div class="section-title">7. INSTRUCCIONES</div>
+        <p style="font-size:10px;color:#64748B;line-height:1.5">
+          Adjuntar los justificantes originales de cada gasto. Los tickets de dietas deben indicar fecha, establecimiento e importe.
+          Los gastos de hotel requieren factura con NIF de la empresa. Plazo máximo de presentación: 30 días naturales desde la fecha del gasto.
+        </p>
+      </div>
+    </div>
+    `;
+  });
+
+  // Build full HTML document
+  const htmlDoc = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Parte de Gastos — Moore Ibergrup Auditores</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; font-size:11px; color:#1E293B; background:#fff; }
+  .page { padding:20px 28px; max-width:900px; margin:0 auto; page-break-after:always; }
+  .page:last-child { page-break-after:auto; }
+  .header-report { display:flex; align-items:center; gap:18px; padding-bottom:12px; border-bottom:2px solid #1E293B; margin-bottom:14px; }
+  .logo img { height:44px; width:auto; }
+  .title-block { flex:1; }
+  .report-title { font-size:15px; font-weight:700; color:#1E293B; letter-spacing:0.5px; }
+  .report-sub { font-size:10px; color:#64748B; margin-top:2px; }
+  .section-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .section-box { border:1px solid #CBD5E1; border-radius:6px; padding:10px; background:#fff; }
+  .section-title { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:#64748B; margin-bottom:8px; border-bottom:1px solid #E2E8F0; padding-bottom:4px; }
+  .info-table { width:100%; border-collapse:collapse; }
+  .info-table td { padding:4px 6px; font-size:10px; border-bottom:1px solid #F1F5F9; }
+  .info-table .lbl { color:#64748B; font-weight:600; width:35%; background:#F8FAFC; }
+  .data-table { width:100%; border-collapse:collapse; font-size:9.5px; }
+  .data-table th { background:#1E293B; color:white; padding:5px 6px; text-align:left; font-weight:600; font-size:9px; }
+  .data-table td { padding:4px 6px; border-bottom:1px solid #F1F5F9; vertical-align:top; }
+  .data-table tr:nth-child(even) td { background:#F8FAFC; }
+  .num { text-align:right; font-variant-numeric:tabular-nums; }
+  .print-btn { position:fixed; top:16px; right:16px; background:#1E293B; color:white; border:none; padding:10px 20px; border-radius:6px; font-size:13px; cursor:pointer; z-index:999; }
+  @media print { .print-btn { display:none; } .page { padding:15px 20px; } }
+</style>
+</head>
+<body>
+<button class="print-btn" onclick="window.print()">🖨️ Imprimir / PDF</button>
+${pagesHtml}
+</body>
+</html>`;
+
+  const w = window.open('', '_blank');
+  if (w) {
+    w.document.write(htmlDoc);
+    w.document.close();
+  } else {
+    toast('Activa las ventanas emergentes para ver el parte');
+  }
+
+  // Send via webhook if configured
+  if (webhookUrl) {
+    try {
+      const resumen = sel.map(t => `${t.fecha} | ${t.tipo} | ${t.proveedor||''} | ${parseFloat(t.importe||0).toFixed(2)}€`).join('\n');
+      await fetch(webhookUrl, {
+        method: 'POST', mode: 'no-cors',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ auditor, tickets: sel.length, resumen, fecha: hoy })
+      });
+    } catch(e) { /* silencioso */ }
+  }
+}
+
+// ─────────────────────────────────────────
+//  SETTINGS
+// ─────────────────────────────────────────
+function loadSettings() {
+  const cfg = getConfig();
+  if (id('s-nombre'))  id('s-nombre').value  = cfg.nombre  || '';
+  if (id('s-email'))   id('s-email').value   = cfg.holded  || '';
+}
+
+function saveSettings() {
+  const cfg = getConfig();
+  cfg.nombre = id('s-nombre').value.trim() || cfg.nombre;
+  cfg.holded = id('s-email').value.trim()  || cfg.holded;
+  saveConfig(cfg);
+  toast('✅ Configuración guardada');
+}
+
+function clearHistory() {
+  if (!confirm('¿Borrar todos los tickets guardados?')) return;
+  localStorage.removeItem(HIST_KEY);
+  renderHistory();
+  toast('🗑️ Historial borrado');
+}
+
+function toast(msg, ms=2800) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  Object.assign(t.style, {
+    position:'fixed', bottom:'24px', left:'50%', transform:'translateX(-50%)',
+    background:'rgba(30,41,59,0.92)', color:'white', padding:'10px 20px',
+    borderRadius:'20px', fontSize:'13px', zIndex:'9999',
+    whiteSpace:'nowrap', boxShadow:'0 4px 12px rgba(0,0,0,0.3)'
+  });
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), ms);
+}
+
+// ─────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const cfg = getConfig();
+  if (cfg.ok) {
+    goTo('screen-home');
+  }
+});
+</script>
+</body>
+</html>
