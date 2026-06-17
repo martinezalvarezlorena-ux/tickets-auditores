@@ -1155,7 +1155,7 @@ window.addEventListener('load', () => {
   id('f-fecha').value = new Date().toISOString().split('T')[0];
   // Webhook pre-configurado
   if (!getConfig().webhook) {
-    id('cfg-webhook').value = 'https://default7234753fa63c44529fc6ed2aad65b8.14.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/b61b6d98f4bb45809e6e253023e2a1b5/triggers/manual/paths/invoke?api-version=1';
+    id('cfg-webhook').value = 'https://default7234753fa63c44529fc6ed2aad65b8.14.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/cd41f32648b14523bcd49e732130f389/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HIsvpLRGmtcluyfF5iRmWLRHDc5-fCP5AY7e__PCpoM';
   }
   // Ocultar step-3 si existiera
   const s3 = document.getElementById('setup-3'); if(s3) s3.style.display='none';
