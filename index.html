@@ -1100,39 +1100,38 @@ function renderHistory() {
       const badgeText  = t.status === 'aprobado' ? '✅ Aprobado' : t.status === 'rechazado' ? '❌ Rechazado' : '⏳ Pendiente';
       return `
         <div class="h-item" onclick="toggleTicket(${t.id}, this)" style="cursor:pointer">
-          <input type="checkbox" ${checked} style="width:18px;height:18px;accent-color:#5B5FC7;flex-shrink:0" onclick="event.stopPropagation();toggleTicket(${t.id},this.closest('.h-item'))">
-          <div class="h-icon">${icon}</div>
-          <div class="h-info">
-            <div class="h-title">${t.proveedor || t.tipo || '—'}</div>
-            <div class="h-sub">${fecha} · ${t.tipo || '—'}</div>
-            <div style="margin-top:4px"><span style="font-size:11px;padding:2px 8px;border-radius:5px;background:${badgeColor}20;color:${badgeColor};font-weight:600">${badgeText}</span></div>
+          <input type="checkbox" ${checked} style="width:18px;height:18px;accent-color:#5B5FC7;flex-shrink:0" onclick="event.stopPropagation();toggleTic          <input type="checkbox" ${checked} style="width:18px;height:18px;accent-color:#5B5FC7;flex-shrink:0" onclick="event.stopPropagation();toggleTicket(${t.id}, this.closest('.h-item'))">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:14px">${icon} ${t.proveedor || '—'}</div>
+            <div style="font-size:12px;color:#666">${fecha} · ${t.tipo || '—'}</div>
+            <div style="font-size:12px;color:#666">${t.encargo || 'Sin cliente'}</div>
           </div>
-          <div class="h-amt">${t.importe ? parseFloat(t.importe).toFixed(2) + '€' : '—'}</div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-weight:700;font-size:15px">€${parseFloat(t.importe||0).toFixed(2)}</div>
+            <div style="font-size:11px;font-weight:600;color:${badgeColor}">${badgeText}</div>
+          </div>
         </div>`;
     }).join('');
     return `
-      <div style="margin-bottom:16px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-          <div style="font-size:12px;font-weight:700;color:#5B5FC7;text-transform:uppercase;letter-spacing:0.5px">📁 ${cliente}</div>
-          <div style="font-size:13px;font-weight:700;color:#1E293B">${totalCliente.toFixed(2)} €</div>
+      <div class="card" style="margin-bottom:12px;padding:0;overflow:hidden">
+        <div style="background:#5B5FC7;color:#fff;padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-weight:700;font-size:14px">📁 ${cliente}</span>
+          <span style="font-size:13px">Total: €${totalCliente.toFixed(2)}</span>
         </div>
-        <div class="card" style="padding:0;overflow:hidden">${items}</div>
+        ${items}
       </div>`;
   }).join('');
 
   updateSelBar();
 }
 
-function toggleTicket(ticketId, el) {
-  const cb = el.querySelector('input[type=checkbox]');
-  if (selectedTickets.has(ticketId)) {
-    selectedTickets.delete(ticketId);
-    if (cb) cb.checked = false;
-    el.style.background = '';
+function toggleTicket(id_t, el) {
+  if (selectedTickets.has(id_t)) {
+    selectedTickets.delete(id_t);
+    if (el) el.style.background = '';
   } else {
-    selectedTickets.add(ticketId);
-    if (cb) cb.checked = true;
-    el.style.background = '#EEF2FF';
+    selectedTickets.add(id_t);
+    if (el) el.style.background = '#EEF0FF';
   }
   updateSelBar();
 }
@@ -1155,6 +1154,7 @@ async function generateParte() {
   const sel = h.filter(t => selectedTickets.has(t.id));
   const cfg = getConfig();
   const auditor = cfg.nombre || 'Auditor';
+  const webhookUrl = cfg.webhook || '';
 
   // Agrupar por cliente
   const grupos = {};
@@ -1164,68 +1164,79 @@ async function generateParte() {
     grupos[key].push(t);
   });
 
-  if (typeof XLSX === 'undefined') { toast('Cargando Excel...'); return; }
-
+  // Generar Excel con SheetJS
   const wb = XLSX.utils.book_new();
-
   Object.entries(grupos).forEach(([cliente, tickets]) => {
-    const rows = [];
-    // Cabecera empresa
-    rows.push(['MOORE IBERGRUP AUDITORES S.A.P.', '', '', '', '', '', '', '']);
-    rows.push(['Parte de Gastos', '', '', '', '', '', '', '']);
-    rows.push(['Auditor:', auditor, '', 'Cliente:', cliente, '', 'Fecha:', new Date().toLocaleDateString('es-ES')]);
-    rows.push([]);
-    // Cabecera columnas
-    rows.push(['Fecha', 'Proveedor', 'NIF/CIF', 'Detalle', 'Base Imponible (€)', 'IVA %', 'Cuota IVA (€)', 'Total (€)']);
-    // Datos
-    let totalBase = 0, totalIva = 0, totalTotal = 0;
+    const rows = [
+      ['Fecha', 'Proveedor', 'NIF', 'Detalle', 'Importe (€)', 'IVA (%)', 'Total (€)', 'Encargo', 'Foto']
+    ];
     tickets.forEach(t => {
-      const base  = parseFloat(t.importe) || 0;
-      const ivaPct = parseFloat(t.iva) || 0;
-      const cuota = Math.round(base * ivaPct / 100 * 100) / 100;
-      const total = Math.round((base + cuota) * 100) / 100;
-      totalBase  += base;
-      totalIva   += cuota;
-      totalTotal += total;
-      const fecha = t.fecha ? t.fecha.split('-').reverse().join('/') : '—';
-      rows.push([fecha, t.proveedor || '—', t.nif || '—', t.tipo || '—',
-        base, ivaPct, cuota, total]);
+      const imp = parseFloat(t.importe) || 0;
+      const iva = parseFloat(t.iva) || 0;
+      const total = imp * (1 + iva / 100);
+      rows.push([
+        t.fecha || '', t.proveedor || '', t.nif || '', t.detalle || '',
+        imp, iva, parseFloat(total.toFixed(2)), t.encargo || '', t.imageUrl || ''
+      ]);
     });
-    rows.push([]);
-    rows.push(['', '', '', 'TOTALES', Math.round(totalBase*100)/100, '', Math.round(totalIva*100)/100, Math.round(totalTotal*100)/100]);
-
     const ws = XLSX.utils.aoa_to_sheet(rows);
-
-    // Anchos de columna
-    ws['!cols'] = [{wch:12},{wch:25},{wch:14},{wch:18},{wch:18},{wch:8},{wch:14},{wch:12}];
-
-    // Nombre de hoja (máx 31 chars)
-    const sheetName = cliente.substring(0, 28).replace(/[:\\\/\?\*\[\]]/g, '');
+    ws['!cols'] = [10,20,15,30,12,8,12,20,40].map(w => ({wch:w}));
+    const sheetName = cliente.substring(0, 31).replace(/[:\\/?*\[\]]/g, '_');
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
   });
 
   const fecha = new Date().toISOString().split('T')[0];
-  XLSX.writeFile(wb, `Parte_Gastos_${auditor.replace(/ /g,'_')}_${fecha}.xlsx`);
+  XLSX.writeFile(wb, `Parte_Gastos_${auditor}_${fecha}.xlsx`);
 
-  // Enviar cada ticket al webhook (registro en OneDrive + aprobación)
-  const cfg = getConfig();
-  if (cfg.webhook) {
-    toast('📤 Enviando a administración...');
+  // Enviar tickets a administración vía webhook
+  if (webhookUrl) {
+    toast('Enviando a administración...');
     for (const t of sel) {
       try {
-        const payload = {
-          auditor:      t.auditor      || auditor,
-          emailAuditor: t.emailAuditor || cfg.holded || '',
-          tipo:         t.tipo         || '',
-          importe:      parseFloat(t.importe) || 0,
-          iva:          parseFloat(t.iva)     || 0,
-          fecha:        t.fecha        || '',
-          proveedor:    t.proveedor    || '',
-          nif:          t.nif          || '',
-          notas:        t.notas        || '',
-          encargo:      t.encargo      || '',
-          imageUrl:     t.imageUrl     || ''
-        };
+        await fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            auditor: auditor,
+            emailAuditor: cfg.email || '',
+            fecha: t.fecha || '',
+            proveedor: t.proveedor || '',
+            nif: t.nif || '',
+            detalle: t.detalle || '',
+            importe: parseFloat(t.importe) || 0,
+            iva: parseFloat(t.iva) || 0,
+            tipo: t.tipo || '',
+            encargo: t.encargo || '',
+            imageUrl: t.imageUrl || ''
+          })
+        });
+        await new Promise(r => setTimeout(r, 500));
+      } catch(e) { console.warn('Webhook error', e); }
+    }
+  }
+
+  toast('✅ Parte generado y enviado a administración');
+  selectedTickets.clear();
+  updateSelBar();
+}
+
+// ─────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  const cfg = getConfig();
+  if (!cfg.nombre || !cfg.email) {
+    showScreen('screen-setup');
+  } else {
+    id('home-nombre').textContent = cfg.nombre;
+    showScreen('screen-home');
+  }
+});
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</body>
+</html>
+ };
         await fetch(cfg.webhook, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
