@@ -558,6 +558,8 @@ const HIST_KEY = 'td_history';
 const getConfig  = () => { try { return JSON.parse(localStorage.getItem(CFG_KEY))  || {}; } catch { return {}; } };
 const getHistory = () => { try { return JSON.parse(localStorage.getItem(HIST_KEY)) || []; } catch { return []; } };
 const saveConfig = cfg => localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+const id = s => document.getElementById(s);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 function addHistory(ticket) {
   const h = getHistory();
@@ -1225,11 +1227,14 @@ async function generateParte() {
 // ─────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   const cfg = getConfig();
-  if (!cfg.nombre || !cfg.email) {
-    showScreen('screen-setup');
-  } else {
-    id('home-nombre').textContent = cfg.nombre;
-    showScreen('screen-home');
+  if (cfg.ok) {
+    goTo('screen-home');
+  }
+  // Fecha de hoy por defecto
+  if (id('f-fecha')) id('f-fecha').value = new Date().toISOString().split('T')[0];
+  // Webhook pre-configurado
+  if (!cfg.webhook && id('cfg-webhook')) {
+    id('cfg-webhook').value = 'https://default7234753fa63c44529fc6ed2aad65b8.14.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/7c5980dc21574a69bd1ef07556124dd4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=dLmBU8cN2gRNnGoBNX0oBmOgVKoRXYXfIgK4h_8VINQ';
   }
 });
 </script>
