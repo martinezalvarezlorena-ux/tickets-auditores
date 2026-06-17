@@ -368,19 +368,39 @@
       <div class="card-title">📋 Datos del justificante</div>
       <div class="fg">
         <label class="label">Tipo de gasto *</label>
-        <select class="input" id="f-tipo" onchange="checkIRPF()">
+        <select class="input" id="f-tipo" onchange="checkIRPF();toggleDesplazamiento()">
           <option value="">— Selecciona —</option>
           <option value="🏨 Hotel">🏨 Hotel / Alojamiento</option>
           <option value="🍽️ Dieta">🍽️ Manutención / Restaurante</option>
           <option value="🚕 Transporte">🚕 Taxi / Transporte urbano</option>
           <option value="🚂 Tren/Avión">🚂 Tren / Avión</option>
           <option value="🚗 Combustible">🚗 Combustible / Peaje</option>
+          <option value="🛣️ Kilometraje">🛣️ Kilometraje (0,26 €/km)</option>
           <option value="📦 Otros">📦 Otros gastos</option>
         </select>
       </div>
+
+      <!-- Campos desplazamiento (solo transporte/km) -->
+      <div id="bloque-desplazamiento" style="display:none">
+        <div class="fg">
+          <label class="label">Lugar de salida</label>
+          <input class="input" id="f-salida" type="text" placeholder="Ej: Oficina Madrid (C/ Génova 11)">
+        </div>
+        <div class="fg">
+          <label class="label">Lugar de destino</label>
+          <input class="input" id="f-destino" type="text" placeholder="Ej: Cliente ABC S.L. — Sevilla">
+        </div>
+        <div class="fg" id="bloque-km" style="display:none">
+          <label class="label">Kilómetros recorridos</label>
+          <input class="input" id="f-km" type="number" step="1" placeholder="Ej: 120" oninput="calcKm()">
+          <div style="font-size:11px;color:#64748B;margin-top:4px">Tarifa AEAT 2025: 0,26 €/km · Total: <strong id="km-total">—</strong></div>
+        </div>
+      </div>
+
       <div class="fg">
-        <label class="label">Importe total (€) *</label>
+        <label class="label">Importe BASE s/IVA (€) *</label>
         <input class="input" id="f-importe" type="number" step="0.01" placeholder="0.00" oninput="checkIRPF()">
+        <div style="font-size:11px;color:#64748B;margin-top:3px">Introduce el importe <strong>sin IVA</strong>. El IVA seleccionado se añadirá al total automáticamente.</div>
       </div>
       <div class="fg">
         <label class="label">Fecha del gasto *</label>
@@ -581,6 +601,22 @@ function goBack() {
 // ─────────────────────────────────────────
 //  SETUP WIZARD
 // ─────────────────────────────────────────
+function toggleDesplazamiento() {
+  const tipo = id('f-tipo').value;
+  const esDesplaz = ['🚕 Transporte','🚂 Tren/Avión','🚗 Combustible','🛣️ Kilometraje'].includes(tipo);
+  const esKm = tipo === '🛣️ Kilometraje';
+  id('bloque-desplazamiento').style.display = esDesplaz ? 'block' : 'none';
+  id('bloque-km').style.display = esKm ? 'block' : 'none';
+  if (esKm) calcKm();
+}
+
+function calcKm() {
+  const km = parseFloat(id('f-km').value) || 0;
+  const total = (km * 0.26).toFixed(2);
+  id('km-total').textContent = km > 0 ? total + ' €' : '—';
+  if (km > 0) id('f-importe').value = total;
+}
+
 function setupNext(step) {
   const ok = {
     1: () => { if (!id('cfg-nombre').value.trim()) { toast('Introduce tu nombre'); return false; } return true; },
@@ -895,6 +931,9 @@ async function submitTicket() {
     nif:       id('f-nif').value,
     iva:       id('f-iva').value,
     notas:     id('f-notas').value,
+    salida:    id('f-salida') ? id('f-salida').value : '',
+    destino:   id('f-destino') ? id('f-destino').value : '',
+    km:        id('f-km') ? id('f-km').value : '',
     auditor:      cfg.nombre || 'Sin nombre',
     emailAuditor: cfg.holded || '',
     status:       'pendiente'
@@ -1159,26 +1198,30 @@ async function generateParte() {
     let totTransporte=0, totAlojamiento=0, totDietas=0, totOtros=0;
     tickets.forEach(t => {
       const imp = parseFloat(t.importe)||0;
-      if (t.tipo&&t.tipo.includes('Hotel'))      totAlojamiento+=imp;
-      else if (t.tipo&&t.tipo.includes('Dieta')) totDietas+=imp;
-      else if (t.tipo&&(t.tipo.includes('Transporte')||t.tipo.includes('Tren')||t.tipo.includes('Combustible'))) totTransporte+=imp;
-      else totOtros+=imp;
+      const ivaPct = parseFloat(t.iva)||0;
+      const total = imp + imp*ivaPct/100;
+      if (t.tipo&&t.tipo.includes('Hotel'))      totAlojamiento+=total;
+      else if (t.tipo&&t.tipo.includes('Dieta')) totDietas+=total;
+      else if (t.tipo&&(t.tipo.includes('Transporte')||t.tipo.includes('Tren')||t.tipo.includes('Combustible')||t.tipo.includes('Kilometraje'))) totTransporte+=total;
+      else totOtros+=total;
     });
     const totGeneral = totTransporte+totAlojamiento+totDietas+totOtros;
 
     const filas = tickets.map(t => {
       const imp = parseFloat(t.importe)||0;
       const ivaPct = parseFloat(t.iva)||0;
-      const ivaEur = imp*ivaPct/100;
+      const ivaEur = ivaPct ? imp*ivaPct/100 : 0;
       const total = imp+ivaEur;
+      const desplaz = (t.salida||t.destino||t.km) ? `${t.salida||''}${t.destino?' → '+t.destino:''}${t.km?' ('+t.km+' km)':''}` : '';
       const fechaFmt = t.fecha ? t.fecha.split('-').reverse().join('/') : '';
       const fotoLink = t.imageUrl ? `<a href="${t.imageUrl}" target="_blank">Ver</a>` : '—';
+      const conceptoFull = [t.notas||'', desplaz].filter(Boolean).join(' · ') || '—';
       return `<tr>
         <td>${fechaFmt}</td>
         <td>${t.tipo||''}</td>
         <td>${t.proveedor||'—'}</td>
         <td>${t.nif||'—'}</td>
-        <td>${t.notas||'—'}</td>
+        <td>${conceptoFull}</td>
         <td class="num">${imp.toFixed(2)}</td>
         <td class="num">${ivaPct?ivaPct+'%':'—'}</td>
         <td class="num"><strong>${total.toFixed(2)}</strong></td>
@@ -1293,6 +1336,7 @@ ${pagesHtml}
 </html>`;
 
   const w = window.open('', '_blank');
+  const w = window.open('', '_blank');
   if (w) {
     w.document.write(htmlDoc);
     w.document.close();
@@ -1300,7 +1344,7 @@ ${pagesHtml}
     toast('Activa las ventanas emergentes para ver el parte');
   }
 
-  // Send via webhook if configured
+  // Enviar via webhook si está configurado
   if (webhookUrl) {
     try {
       const resumen = sel.map(t => `${t.fecha} | ${t.tipo} | ${t.proveedor||''} | ${parseFloat(t.importe||0).toFixed(2)}€`).join('\n');
@@ -1318,14 +1362,14 @@ ${pagesHtml}
 // ─────────────────────────────────────────
 function loadSettings() {
   const cfg = getConfig();
-  if (id('s-nombre'))  id('s-nombre').value  = cfg.nombre  || '';
-  if (id('s-email'))   id('s-email').value   = cfg.holded  || '';
+  if (id('s-nombre')) id('s-nombre').value = cfg.nombre || '';
+  if (id('s-email'))  id('s-email').value  = cfg.holded || '';
 }
 
 function saveSettings() {
   const cfg = getConfig();
-  cfg.nombre = id('s-nombre').value.trim() || cfg.nombre;
-  cfg.holded = id('s-email').value.trim()  || cfg.holded;
+  cfg.nombre = id('s-nombre') ? id('s-nombre').value.trim() || cfg.nombre : cfg.nombre;
+  cfg.holded = id('s-email')  ? id('s-email').value.trim()  || cfg.holded : cfg.holded;
   saveConfig(cfg);
   toast('✅ Configuración guardada');
 }
