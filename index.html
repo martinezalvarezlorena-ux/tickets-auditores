@@ -1157,6 +1157,7 @@ async function generateParte() {
   const cfg = getConfig();
   const auditor = cfg.nombre || 'Auditor';
   const webhookUrl = cfg.webhook || '';
+  const hoy = new Date().toLocaleDateString('es-ES');
 
   // Agrupar por cliente
   const grupos = {};
@@ -1166,29 +1167,91 @@ async function generateParte() {
     grupos[key].push(t);
   });
 
-  // Generar Excel con SheetJS
   const wb = XLSX.utils.book_new();
+
   Object.entries(grupos).forEach(([cliente, tickets]) => {
-    const rows = [
-      ['Fecha', 'Proveedor', 'NIF', 'Detalle', 'Importe (€)', 'IVA (%)', 'Total (€)', 'Encargo', 'Foto']
-    ];
+    // ── Calcular totales por tipo ──
+    let totTransporte = 0, totAlojamiento = 0, totDietas = 0, totOtros = 0;
     tickets.forEach(t => {
       const imp = parseFloat(t.importe) || 0;
-      const iva = parseFloat(t.iva) || 0;
-      const total = imp * (1 + iva / 100);
+      if (t.tipo && t.tipo.includes('Hotel'))       totAlojamiento += imp;
+      else if (t.tipo && t.tipo.includes('Dieta'))  totDietas      += imp;
+      else if (t.tipo && (t.tipo.includes('Transporte') || t.tipo.includes('Tren') || t.tipo.includes('Combustible'))) totTransporte += imp;
+      else totOtros += imp;
+    });
+    const totGeneral = totTransporte + totAlojamiento + totDietas + totOtros;
+
+    // ── Construir filas del parte ──
+    const rows = [];
+    const M = (v) => v; // helper legibilidad
+
+    rows.push(['PARTE DE GASTOS Y DESPLAZAMIENTOS', '', '', '', '', '', '', '']);
+    rows.push(['']);
+    rows.push(['1. DATOS DEL EMPLEADO', '', '', '', '', '', '', '']);
+    rows.push(['Nombre y apellidos:', auditor, '', '', 'Categoría:', 'Auditor/a', '', '']);
+    rows.push(['Fecha de presentación:', hoy, '', '', '', '', '', '']);
+    rows.push(['']);
+    rows.push(['2. DATOS DEL ENCARGO', '', '', '', '', '', '', '']);
+    rows.push(['Cliente:', cliente, '', '', '', '', '', '']);
+    rows.push(['']);
+    rows.push(['4. DETALLE DE GASTOS', '', '', '', '', '', '', '']);
+    rows.push(['Fecha', 'Tipo', 'Proveedor', 'NIF/CIF', 'Concepto/Notas', 'Importe (€)', 'IVA (%)', 'Total (€)']);
+
+    tickets.forEach(t => {
+      const imp = parseFloat(t.importe) || 0;
+      const ivaPct = parseFloat(t.iva) || 0;
+      const ivaEur = imp * ivaPct / 100;
+      const total = imp + ivaEur;
+      const fechaFmt = t.fecha ? t.fecha.split('-').reverse().join('/') : '';
       rows.push([
-        t.fecha || '', t.proveedor || '', t.nif || '', t.detalle || '',
-        imp, iva, parseFloat(total.toFixed(2)), t.encargo || '', t.imageUrl || ''
+        fechaFmt,
+        t.tipo || '',
+        t.proveedor || '',
+        t.nif || '',
+        t.notas || '',
+        imp,
+        ivaPct,
+        parseFloat(total.toFixed(2))
       ]);
     });
+
+    rows.push(['']);
+    rows.push(['5. RESUMEN', '', '', '', '', '', '', '']);
+    rows.push(['Gastos transporte:', totTransporte.toFixed(2) + ' €', '', '', '', '', '', '']);
+    rows.push(['Gastos alojamiento:', totAlojamiento.toFixed(2) + ' €', '', '', '', '', '', '']);
+    rows.push(['Dietas:', totDietas.toFixed(2) + ' €', '', '', '', '', '', '']);
+    rows.push(['Otros gastos:', totOtros.toFixed(2) + ' €', '', '', '', '', '', '']);
+    rows.push(['TOTAL A REEMBOLSAR:', totGeneral.toFixed(2) + ' €', '', '', '', '', '', '']);
+    rows.push(['']);
+    rows.push(['6. DOCUMENTACIÓN JUSTIFICATIVA', '', '', '', '', '', '', '']);
+    rows.push(['Se adjuntan justificantes (ver columna Foto en tickets originales)', '', '', '', '', '', '', '']);
+    rows.push(['']);
+    rows.push(['7. DECLARACIÓN DEL EMPLEADO', '', '', '', '', '', '', '']);
+    rows.push(['Declaro que los gastos incluidos han sido realizados exclusivamente para el desempeño de mis funciones.', '', '', '', '', '', '', '']);
+    rows.push(['Firma del empleado:', '', '', '', 'Fecha:', hoy, '', '']);
+    rows.push(['']);
+    rows.push(['8. APROBACIONES', '', '', '', '', '', '', '']);
+    rows.push(['Revisión gerente/responsable', '', '', '', 'Administración', '', '', '']);
+    rows.push(['Nombre:', '', '', '', 'Nombre:', '', '', '']);
+    rows.push(['Firma:', '', '', '', 'Firma:', '', '', '']);
+    rows.push(['Fecha:', '', '', '', 'Fecha:', '', '', '']);
+
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols'] = [10,20,15,30,12,8,12,20,40].map(w => ({wch:w}));
+    ws['!cols'] = [14, 22, 20, 14, 22, 12, 8, 12].map(w => ({ wch: w }));
+
+    // Fusionar título principal
+    if (!ws['!merges']) ws['!merges'] = [];
+    ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }); // título
+    ws['!merges'].push({ s: { r: 2, c: 0 }, e: { r: 2, c: 7 } }); // sección 1
+    ws['!merges'].push({ s: { r: 6, c: 0 }, e: { r: 6, c: 7 } }); // sección 2
+    ws['!merges'].push({ s: { r: 9, c: 0 }, e: { r: 9, c: 7 } }); // sección 4
+
     const sheetName = cliente.substring(0, 31).replace(/[:\\/?*\[\]]/g, '_');
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
   });
 
-  const fecha = new Date().toISOString().split('T')[0];
-  XLSX.writeFile(wb, `Parte_Gastos_${auditor}_${fecha}.xlsx`);
+  const fechaFile = new Date().toISOString().split('T')[0];
+  XLSX.writeFile(wb, `Parte_Gastos_${auditor}_${fechaFile}.xlsx`);
 
   // Enviar tickets a administración vía webhook
   if (webhookUrl) {
@@ -1199,12 +1262,12 @@ async function generateParte() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            auditor: auditor,
-            emailAuditor: cfg.email || '',
+            auditor,
+            emailAuditor: cfg.holded || '',
             fecha: t.fecha || '',
             proveedor: t.proveedor || '',
             nif: t.nif || '',
-            detalle: t.detalle || '',
+            detalle: t.notas || '',
             importe: parseFloat(t.importe) || 0,
             iva: parseFloat(t.iva) || 0,
             tipo: t.tipo || '',
