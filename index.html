@@ -471,9 +471,15 @@
   <div class="content">
     <div class="ok-icon">✅</div>
     <div class="ok-title">¡Ticket enviado!</div>
-    <div class="ok-sub" id="ok-msg">Tu ticket ha sido enviado a administración. Recibirás confirmación cuando sea validado.</div>
+    <div class="ok-sub">Tu ticket ha sido enviado a administración vía Teams.</div>
     <div class="card" id="ok-detail"></div>
-    <button class="btn btn-primary" onclick="goTo('screen-home'); resetAll()">📸 Enviar otro ticket</button>
+    <button class="btn btn-primary" id="btn-email-admin" onclick="openAdminEmail()" style="display:none">
+      📧 Enviar email a administración
+    </button>
+    <div id="ok-email-hint" style="font-size:10px;color:#64748B;text-align:center;margin-top:4px;margin-bottom:8px;display:none">
+      Toca para abrir tu correo y pulsa Enviar
+    </div>
+    <button class="btn btn-outline" onclick="goTo('screen-home'); resetAll()">📸 Enviar otro ticket</button>
     <button class="btn btn-ghost"   onclick="goTo('screen-history')">Ver mis envíos</button>
   </div>
 </div>
@@ -987,22 +993,20 @@ function buildCard(t, imageUrl, holdedEmail) {
     body.splice(1, 0, { type: 'Image', url: imageUrl, size: 'Large', altText: 'Foto del ticket' });
   }
 
-  // Botón Aprobar → abre email a administración
-  const adminEmail = holdedEmail || 'lorena.martinez@msib.es';
+  // Botón Aprobar → email de confirmación al auditor
+  const emailAuditorAddr = t.emailAuditor || holdedEmail || '';
   const actions = [];
   {
-    const subj = encodeURIComponent(`[APROBADO] ${t.tipo} — ${t.auditor} — ${t.encargo} — ${fechaFmt}`);
+    const subj = encodeURIComponent('[APROBADO] ' + t.tipo + ' - ' + t.auditor + ' - ' + fechaFmt);
     const body_mail = encodeURIComponent(
-      `Ticket aprobado para gestión.\n\n` +
-      `Auditor: ${t.auditor}\nEncargo: ${t.encargo}\nTipo: ${t.tipo}\n` +
-      `Importe: ${t.importe} €\nIVA: ${ivaFmt}\nFecha: ${fechaFmt}\n` +
-      `Proveedor: ${t.proveedor || '—'}\nNIF/CIF: ${t.nif || '—'}\n\n` +
-      `${imageUrl ? '📷 Foto del justificante: ' + imageUrl : 'Sin foto adjunta'}`
+      'Hola ' + t.auditor + ',\n\nTu ticket ha sido APROBADO.\n\n' +
+      'Tipo: ' + t.tipo + '\nImporte: ' + t.importe + ' EUR\nFecha: ' + fechaFmt + '\nEncargo: ' + t.encargo + '\n\n' +
+      'Queda registrado en administracion.\n\nUn saludo,\nAdministracion MSIB'
     );
     actions.push({
       type: 'Action.OpenUrl', style: 'positive',
-      title: '✅ Aprobar → Administración',
-      url: `mailto:${adminEmail}?subject=${subj}&body=${body_mail}`
+      title: '✅ Aprobar',
+      url: 'mailto:' + emailAuditorAddr + '?subject=' + subj + '&body=' + body_mail
     });
   }
 
@@ -1035,36 +1039,33 @@ function showSuccess() {
   goTo('screen-success');
   const t = ticket;
   const fechaFmt = t.fecha ? t.fecha.split('-').reverse().join('/') : '—';
-  const adminEmail = 'lorena.martinez@msib.es';
-  const subj = encodeURIComponent(`[TICKET] ${t.tipo} — ${t.auditor} — ${t.encargo} — ${fechaFmt}`);
-  const imgLine = ticket.imageUrl ? `\n📷 Foto: ${ticket.imageUrl}` : '';
-  const bodyMail = encodeURIComponent(
-    `Hola Lorena,\n\nTe envío el siguiente ticket para su validación:\n\n` +
-    `Auditor: ${t.auditor}\nEncargo: ${t.encargo}\nTipo: ${t.tipo}\n` +
-    `Importe: ${t.importe} €\nFecha: ${fechaFmt}\n` +
-    `Proveedor: ${t.proveedor || '—'}\nNIF/CIF: ${t.nif || '—'}\n` +
-    `IVA: ${t.iva ? t.iva + '%' : '—'}\n` +
-    `Notas: ${t.notas || '—'}${imgLine}\n\nQuedo a tu disposición para cualquier consulta.`
-  );
-  const mailtoUrl = `mailto:${adminEmail}?subject=${subj}&body=${bodyMail}`;
+  const detail = id('ok-detail');
+  detail.innerHTML = '';
+  const title = document.createElement('div'); title.className = 'card-title'; title.textContent = 'Resumen del ticket enviado'; detail.appendChild(title);
+  const info = document.createElement('div'); info.style.cssText = 'font-size:12px;line-height:2.2';
+  info.innerHTML = `<div><strong>Tipo:</strong> ${t.tipo}</div>
+    <div><strong>Importe:</strong> ${t.importe} €</div>
+    <div><strong>Fecha:</strong> ${fechaFmt}</div>
+    <div><strong>Encargo:</strong> ${t.encargo}</div>
+    <div><strong>Estado:</strong> <span class="badge badge-orange">⏳ Pendiente</span></div>`;
+  detail.appendChild(info);
+  id('btn-email-admin').style.display = 'block';
+  id('ok-email-hint').style.display = 'block';
+}
 
-  id('ok-detail').innerHTML = `
-    <div class="card-title">Resumen del ticket enviado</div>
-    <div style="font-size:12px;line-height:2.2">
-      <div><strong>Tipo:</strong> ${t.tipo}</div>
-      <div><strong>Importe:</strong> ${t.importe} €</div>
-      <div><strong>Fecha:</strong> ${fechaFmt}</div>
-      <div><strong>Encargo:</strong> ${t.encargo}</div>
-      <div><strong>Estado:</strong> <span class="badge badge-orange">⏳ Pendiente de validación</span></div>
-    </div>
-    <a href="${mailtoUrl}" class="btn btn-primary" style="display:block;text-align:center;text-decoration:none;margin-top:12px">
-      📧 Enviar email a administración
-    </a>
-    <div style="font-size:10px;color:#64748B;text-align:center;margin-top:6px">Toca para abrir tu correo y confirma el envío</div>
-  `;
-
-  // Guardar imageUrl en el ticket para el mailto
-  ticket.imageUrl = ticket.imageUrl || '';
+function openAdminEmail() {
+  const t = ticket;
+  const fechaFmt = t.fecha ? t.fecha.split('-').reverse().join('/') : '—';
+  const imgLine = t.imageUrl ? '\n\nFoto del justificante: ' + t.imageUrl : '';
+  const subj = '[TICKET] ' + t.tipo + ' - ' + t.auditor + ' - ' + t.encargo + ' - ' + fechaFmt;
+  const body =
+    'Hola Lorena,\n\nTe envio el siguiente ticket para su validacion:\n\n' +
+    'Auditor: ' + t.auditor + '\nEmail: ' + (t.emailAuditor || '') + '\nEncargo: ' + t.encargo + '\nTipo: ' + t.tipo + '\n' +
+    'Importe: ' + t.importe + ' EUR\nFecha: ' + fechaFmt + '\n' +
+    'Proveedor: ' + (t.proveedor || '-') + '\nNIF/CIF: ' + (t.nif || '-') + '\n' +
+    'IVA: ' + (t.iva ? t.iva + '%' : '-') + '\nNotas: ' + (t.notas || '-') + imgLine +
+    '\n\nQuedo a tu disposicion para cualquier consulta.';
+  window.location.href = 'mailto:lorena.martinez@msib.es?subject=' + encodeURIComponent(subj) + '&body=' + encodeURIComponent(body);
 }
 
 function resetAll() {
@@ -1154,7 +1155,7 @@ window.addEventListener('load', () => {
   id('f-fecha').value = new Date().toISOString().split('T')[0];
   // Webhook pre-configurado
   if (!getConfig().webhook) {
-    id('cfg-webhook').value = 'https://default7234753fa63c44529fc6ed2aad65b8.14.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/cd41f32648b14523bcd49e732130f389/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HIsvpLRGmtcluyfF5iRmWLRHDc5-fCP5AY7e__PCpoM';
+    id('cfg-webhook').value = 'https://default7234753fa63c44529fc6ed2aad65b8.14.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/b61b6d98f4bb45809e6e253023e2a1b5/triggers/manual/paths/invoke?api-version=1';
   }
   // Ocultar step-3 si existiera
   const s3 = document.getElementById('setup-3'); if(s3) s3.style.display='none';
