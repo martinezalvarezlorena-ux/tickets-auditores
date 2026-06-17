@@ -1223,6 +1223,45 @@ async function generateParte() {
 }
 
 // ─────────────────────────────────────────
+//  AJUSTES
+// ─────────────────────────────────────────
+function loadSettings() {
+  const c = getConfig();
+  id('s-nombre').value  = c.nombre  || '';
+  id('s-webhook').value = c.webhook || '';
+  id('s-holded').value  = c.holded  || '';
+  if (id('s-ocrkey')) id('s-ocrkey').value = c.ocrkey || '';
+}
+
+function saveSettings() {
+  const c = getConfig();
+  c.nombre  = id('s-nombre').value.trim();
+  c.webhook = id('s-webhook').value.trim();
+  c.holded  = id('s-holded').value.trim();
+  if (id('s-ocrkey')) c.ocrkey = id('s-ocrkey').value.trim();
+  saveConfig(c);
+  toast('✅ Ajustes guardados');
+}
+
+function clearHistory() {
+  if (confirm('¿Borrar el historial local?')) {
+    localStorage.removeItem(HIST_KEY);
+    renderHistory();
+    toast('Historial borrado');
+  }
+}
+
+// ─────────────────────────────────────────
+//  UTILIDADES
+// ─────────────────────────────────────────
+function toast(msg) {
+  const el = id('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ─────────────────────────────────────────
 //  INIT
 // ─────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
@@ -1241,21 +1280,6 @@ window.addEventListener('DOMContentLoaded', () => {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </body>
 </html>
- };
-        await fetch(cfg.webhook, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        await new Promise(r => setTimeout(r, 500)); // pausa entre llamadas
-      } catch(e) { console.warn('Webhook parte:', e); }
-    }
-  }
-
-  toast('✅ Parte generado y enviado a administración');
-  selectedTickets.clear();
-  updateSelBar();
-}
 
 // ─────────────────────────────────────────
 //  AJUSTES
