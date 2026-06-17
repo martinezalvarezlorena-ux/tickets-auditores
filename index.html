@@ -1100,7 +1100,7 @@ function renderHistory() {
       const badgeText  = t.status === 'aprobado' ? '✅ Aprobado' : t.status === 'rechazado' ? '❌ Rechazado' : '⏳ Pendiente';
       return `
         <div class="h-item" onclick="toggleTicket(${t.id}, this)" style="cursor:pointer">
-          <input type="checkbox" ${checked} style="width:18px;height:18px;accent-color:#5B5FC7;flex-shrink:0" onclick="event.stopPropagation();toggleTic          <input type="checkbox" ${checked} style="width:18px;height:18px;accent-color:#5B5FC7;flex-shrink:0" onclick="event.stopPropagation();toggleTicket(${t.id}, this.closest('.h-item'))">
+          <input type="checkbox" ${checked} style="width:18px;height:18px;accent-color:#5B5FC7;flex-shrink:0" onclick="event.stopPropagation();toggleTicket(${t.id}, this.closest('.h-item'))">
           <div style="flex:1;min-width:0">
             <div style="font-weight:600;font-size:14px">${icon} ${t.proveedor || '—'}</div>
             <div style="font-size:12px;color:#666">${fecha} · ${t.tipo || '—'}</div>
