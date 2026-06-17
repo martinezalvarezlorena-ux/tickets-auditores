@@ -490,12 +490,24 @@
 <div class="screen" id="screen-history">
   <div class="header">
     <span class="header-back" onclick="goBack()">←</span>
-    <div>
-      <div class="header-title">Mis envíos</div>
-      <div class="header-sub">Historial de tickets</div>
+    <div style="flex:1">
+      <div class="header-title">Mis tickets</div>
+      <div class="header-sub" id="hist-subtitle">Historial de envíos</div>
     </div>
   </div>
-  <div class="content" id="history-content"></div>
+  <div class="content">
+    <div class="card" style="padding:12px">
+      <label class="label">Filtrar por cliente</label>
+      <select class="input" id="hist-filter-cliente" onchange="renderHistory()">
+        <option value="">— Todos los clientes —</option>
+      </select>
+    </div>
+    <div id="hist-sel-bar" style="display:none;background:#5B5FC7;color:white;padding:10px 16px;border-radius:10px;margin-bottom:12px;display:none;align-items:center;justify-content:space-between;">
+      <span id="hist-sel-count">0 tickets seleccionados</span>
+      <button onclick="generateParte()" style="background:white;color:#5B5FC7;border:none;border-radius:8px;padding:7px 14px;font-weight:700;font-size:13px;cursor:pointer;">📊 Generar parte</button>
+    </div>
+    <div id="history-content"></div>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════════
@@ -1074,31 +1086,155 @@ function resetAll() {
 // ─────────────────────────────────────────
 //  HISTORIAL
 // ─────────────────────────────────────────
+let selectedTickets = new Set();
+
 function renderHistory() {
   const h = getHistory();
   const el = id('history-content');
-  if (!h.length) {
-    el.innerHTML = '<div class="alert alert-info">Aún no has enviado ningún ticket desde este dispositivo.</div>';
+  const filterSel = id('hist-filter-cliente');
+  const filtroCliente = filterSel ? filterSel.value : '';
+
+  // Poblar filtro de clientes
+  const clientes = [...new Set(h.map(t => t.encargo).filter(Boolean))].sort();
+  const currentFilter = filterSel ? filterSel.value : '';
+  filterSel.innerHTML = '<option value="">— Todos los clientes —</option>' +
+    clientes.map(c => `<option value="${c}" ${c === currentFilter ? 'selected' : ''}>${c}</option>`).join('');
+
+  const filtered = filtroCliente ? h.filter(t => t.encargo === filtroCliente) : h;
+
+  if (!filtered.length) {
+    el.innerHTML = '<div class="alert alert-info">No hay tickets' + (filtroCliente ? ' para este cliente' : ' enviados desde este dispositivo') + '.</div>';
+    updateSelBar();
     return;
   }
-  el.innerHTML = h.map(t => {
-    const fecha = t.fecha ? t.fecha.split('-').reverse().join('/') : '—';
-    const icon  = t.tipo ? t.tipo.split(' ')[0] : '📄';
-    const badge = t.status === 'pendiente'
-      ? '<span class="badge badge-orange">⏳ Pendiente</span>'
-      : '<span class="badge badge-green">✅ Aprobado</span>';
+
+  // Agrupar por cliente
+  const grupos = {};
+  filtered.forEach(t => {
+    const key = t.encargo || 'Sin cliente';
+    if (!grupos[key]) grupos[key] = [];
+    grupos[key].push(t);
+  });
+
+  el.innerHTML = Object.entries(grupos).map(([cliente, tickets]) => {
+    const totalCliente = tickets.reduce((s, t) => s + (parseFloat(t.importe) || 0), 0);
+    const items = tickets.map(t => {
+      const fecha = t.fecha ? t.fecha.split('-').reverse().join('/') : '—';
+      const icon  = t.tipo ? t.tipo.split(' ')[0] : '📄';
+      const checked = selectedTickets.has(t.id) ? 'checked' : '';
+      const badgeColor = t.status === 'aprobado' ? '#16A34A' : t.status === 'rechazado' ? '#DC2626' : '#D97706';
+      const badgeText  = t.status === 'aprobado' ? '✅ Aprobado' : t.status === 'rechazado' ? '❌ Rechazado' : '⏳ Pendiente';
+      return `
+        <div class="h-item" onclick="toggleTicket(${t.id}, this)" style="cursor:pointer">
+          <input type="checkbox" ${checked} style="width:18px;height:18px;accent-color:#5B5FC7;flex-shrink:0" onclick="event.stopPropagation();toggleTicket(${t.id},this.closest('.h-item'))">
+          <div class="h-icon">${icon}</div>
+          <div class="h-info">
+            <div class="h-title">${t.proveedor || t.tipo || '—'}</div>
+            <div class="h-sub">${fecha} · ${t.tipo || '—'}</div>
+            <div style="margin-top:4px"><span style="font-size:11px;padding:2px 8px;border-radius:5px;background:${badgeColor}20;color:${badgeColor};font-weight:600">${badgeText}</span></div>
+          </div>
+          <div class="h-amt">${t.importe ? parseFloat(t.importe).toFixed(2) + '€' : '—'}</div>
+        </div>`;
+    }).join('');
     return `
-      <div class="h-item">
-        <div class="h-icon">${icon}</div>
-        <div class="h-info">
-          <div class="h-title">${t.encargo || 'Sin encargo'}</div>
-          <div class="h-sub">${fecha} · ${t.proveedor || t.tipo || '—'}</div>
-          <div style="margin-top:4px">${badge}</div>
+      <div style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div style="font-size:12px;font-weight:700;color:#5B5FC7;text-transform:uppercase;letter-spacing:0.5px">📁 ${cliente}</div>
+          <div style="font-size:13px;font-weight:700;color:#1E293B">${totalCliente.toFixed(2)} €</div>
         </div>
-        <div class="h-amt">${t.importe ? t.importe + '€' : '—'}</div>
-      </div>
-    `;
+        <div class="card" style="padding:0;overflow:hidden">${items}</div>
+      </div>`;
   }).join('');
+
+  updateSelBar();
+}
+
+function toggleTicket(ticketId, el) {
+  const cb = el.querySelector('input[type=checkbox]');
+  if (selectedTickets.has(ticketId)) {
+    selectedTickets.delete(ticketId);
+    if (cb) cb.checked = false;
+    el.style.background = '';
+  } else {
+    selectedTickets.add(ticketId);
+    if (cb) cb.checked = true;
+    el.style.background = '#EEF2FF';
+  }
+  updateSelBar();
+}
+
+function updateSelBar() {
+  const bar = id('hist-sel-bar');
+  const cnt = id('hist-sel-count');
+  if (!bar) return;
+  if (selectedTickets.size > 0) {
+    bar.style.display = 'flex';
+    cnt.textContent = selectedTickets.size + ' ticket' + (selectedTickets.size > 1 ? 's' : '') + ' seleccionado' + (selectedTickets.size > 1 ? 's' : '');
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+function generateParte() {
+  if (selectedTickets.size === 0) { toast('Selecciona al menos un ticket'); return; }
+  const h = getHistory();
+  const sel = h.filter(t => selectedTickets.has(t.id));
+  const cfg = getConfig();
+  const auditor = cfg.nombre || 'Auditor';
+
+  // Agrupar por cliente
+  const grupos = {};
+  sel.forEach(t => {
+    const key = t.encargo || 'Sin cliente';
+    if (!grupos[key]) grupos[key] = [];
+    grupos[key].push(t);
+  });
+
+  if (typeof XLSX === 'undefined') { toast('Cargando Excel...'); return; }
+
+  const wb = XLSX.utils.book_new();
+
+  Object.entries(grupos).forEach(([cliente, tickets]) => {
+    const rows = [];
+    // Cabecera empresa
+    rows.push(['MOORE IBERGRUP AUDITORES S.A.P.', '', '', '', '', '', '', '']);
+    rows.push(['Parte de Gastos', '', '', '', '', '', '', '']);
+    rows.push(['Auditor:', auditor, '', 'Cliente:', cliente, '', 'Fecha:', new Date().toLocaleDateString('es-ES')]);
+    rows.push([]);
+    // Cabecera columnas
+    rows.push(['Fecha', 'Proveedor', 'NIF/CIF', 'Detalle', 'Base Imponible (€)', 'IVA %', 'Cuota IVA (€)', 'Total (€)']);
+    // Datos
+    let totalBase = 0, totalIva = 0, totalTotal = 0;
+    tickets.forEach(t => {
+      const base  = parseFloat(t.importe) || 0;
+      const ivaPct = parseFloat(t.iva) || 0;
+      const cuota = Math.round(base * ivaPct / 100 * 100) / 100;
+      const total = Math.round((base + cuota) * 100) / 100;
+      totalBase  += base;
+      totalIva   += cuota;
+      totalTotal += total;
+      const fecha = t.fecha ? t.fecha.split('-').reverse().join('/') : '—';
+      rows.push([fecha, t.proveedor || '—', t.nif || '—', t.tipo || '—',
+        base, ivaPct, cuota, total]);
+    });
+    rows.push([]);
+    rows.push(['', '', '', 'TOTALES', Math.round(totalBase*100)/100, '', Math.round(totalIva*100)/100, Math.round(totalTotal*100)/100]);
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+
+    // Anchos de columna
+    ws['!cols'] = [{wch:12},{wch:25},{wch:14},{wch:18},{wch:18},{wch:8},{wch:14},{wch:12}];
+
+    // Nombre de hoja (máx 31 chars)
+    const sheetName = cliente.substring(0, 28).replace(/[:\\\/\?\*\[\]]/g, '');
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  });
+
+  const fecha = new Date().toISOString().split('T')[0];
+  XLSX.writeFile(wb, `Parte_Gastos_${auditor.replace(/ /g,'_')}_${fecha}.xlsx`);
+  toast('✅ Excel generado y descargado');
+  selectedTickets.clear();
+  updateSelBar();
 }
 
 // ─────────────────────────────────────────
@@ -1162,5 +1298,6 @@ window.addEventListener('load', () => {
   }
 });
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </body>
 </html>
