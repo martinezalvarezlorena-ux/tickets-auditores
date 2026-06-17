@@ -235,32 +235,17 @@
       <button class="btn btn-primary" onclick="setupNext(1)">Continuar →</button>
     </div>
 
-    <!-- Paso 2: Teams + Holded -->
+    <!-- Paso 2: Email -->
     <div class="setup-step" id="setup-2">
       <div class="s-num">2</div>
-      <div class="s-title">Tu email y canal de Teams</div>
-      <div class="s-desc">Introduce tu email de trabajo y la URL del webhook ya está pre-configurada.</div>
-      <div class="alert alert-info">
-        <strong>Crear Webhook en Teams (2 min):</strong><br>
-        1. Abre el canal de administración en Teams<br>
-        2. Haz clic en ··· junto al nombre del canal<br>
-        3. Conectores → Incoming Webhook → Configurar<br>
-        4. Nombre: "Tickets Auditores" → Crear<br>
-        5. Copia la URL y pégala abajo
-      </div>
+      <div class="s-title">Tu email de trabajo</div>
+      <div class="s-desc">Introduce tu email para recibir la confirmación de cada ticket aprobado.</div>
       <div class="fg">
-        <label class="label">URL del Incoming Webhook de Teams *</label>
-        <input class="input" id="cfg-webhook" type="url" placeholder="https://xxxx.webhook.office.com/...">
-      </div>
-      <div class="fg">
-        <label class="label">Tu email de trabajo *</label>
+        <label class="label">Email de trabajo *</label>
         <input class="input" id="cfg-holded" type="email" placeholder="nombre@msib.es">
       </div>
-      <div class="fg" style="margin-top:4px">
-        <label class="label">API Key OCR.space (gratuita) *</label>
-        <input class="input" id="cfg-ocrkey" type="text" placeholder="helloworld">
-        <div style="font-size:10px;color:#64748B;margin-top:4px">Regístrate gratis en <strong>ocr.space/OCRAPI</strong> para obtener tu clave. Puedes usar <em>helloworld</em> para probar.</div>
-      </div>
+      <input type="hidden" id="cfg-webhook" value="">
+      <input type="hidden" id="cfg-ocrkey" value="helloworld">
       <button class="btn btn-success" onclick="setupFinish()">✅ Guardar y empezar</button>
       <button class="btn btn-ghost" onclick="setupPrev(2)">← Atrás</button>
     </div>
@@ -283,12 +268,12 @@
       <div class="tile tile-main" onclick="goTo('screen-capture')">
         <div class="tile-icon">📸</div>
         <div class="tile-label">Nuevo Ticket</div>
-        <div class="tile-sub">Foto y envío a administración</div>
+        <div class="tile-sub">Foto y guardado local</div>
       </div>
       <div class="tile" onclick="goTo('screen-history')">
         <div class="tile-icon">📋</div>
-        <div class="tile-label">Mis envíos</div>
-        <div class="tile-sub">Historial</div>
+        <div class="tile-label">Mis tickets</div>
+        <div class="tile-sub">Generar parte de gastos</div>
       </div>
       <div class="tile" onclick="goTo('screen-settings')">
         <div class="tile-icon">⚙️</div>
@@ -600,8 +585,7 @@ function setupNext(step) {
   const ok = {
     1: () => { if (!id('cfg-nombre').value.trim()) { toast('Introduce tu nombre'); return false; } return true; },
     2: () => {
-      if (!id('cfg-webhook').value.trim()) { toast('Introduce la URL del webhook de Teams'); return false; }
-      if (!id('cfg-holded').value.trim())  { toast('Introduce tu email de trabajo'); return false; }
+      if (!id('cfg-holded').value.trim()) { toast('Introduce tu email de trabajo'); return false; }
       return true;
     }
   };
