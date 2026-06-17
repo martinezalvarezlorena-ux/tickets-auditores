@@ -471,7 +471,7 @@
   <div class="content">
     <div class="ok-icon">✅</div>
     <div class="ok-title">¡Ticket enviado!</div>
-    <div class="ok-sub">Tu ticket ha sido enviado a administración vía Teams.</div>
+    <div class="ok-sub">Ticket guardado. Envíalo a administración desde "Mis tickets" al generar el parte.</div>
     <div class="card" id="ok-detail"></div>
     <button class="btn btn-primary" id="btn-email-admin" onclick="openAdminEmail()" style="display:none">
       📧 Enviar email a administración
@@ -939,34 +939,8 @@ async function doSend(cfg) {
     } catch (e) { console.warn('imgbb:', e); toast('Aviso: no se pudo subir la foto'); }
   }
 
-  bar.style.width = '55%';
-  lbl.textContent = 'Enviando notificación a Teams...';
-
-  // 2. Webhook Power Automate — JSON limpio
-  if (cfg.webhook) {
-    try {
-      const payload = {
-        auditor:      ticket.auditor      || '',
-        emailAuditor: ticket.emailAuditor || cfg.holded || '',
-        tipo:         ticket.tipo         || '',
-        importe:      parseFloat(ticket.importe) || 0,
-        iva:          parseFloat(ticket.iva)     || 0,
-        fecha:        ticket.fecha        || '',
-        proveedor:    ticket.proveedor    || '',
-        nif:          ticket.nif          || '',
-        notas:        ticket.notas        || '',
-        encargo:      ticket.encargo      || '',
-        imageUrl:     imageUrl            || ''
-      };
-      await fetch(cfg.webhook, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-    } catch (e) { console.warn('Webhook:', e); }
-  }
-
   bar.style.width = '90%';
+  lbl.textContent = 'Guardando ticket...';
   lbl.textContent = 'Guardando...';
   ticket.imageUrl = imageUrl;
   addHistory({ ...ticket });
@@ -1232,7 +1206,37 @@ function generateParte() {
 
   const fecha = new Date().toISOString().split('T')[0];
   XLSX.writeFile(wb, `Parte_Gastos_${auditor.replace(/ /g,'_')}_${fecha}.xlsx`);
-  toast('✅ Excel generado y descargado');
+
+  // Enviar cada ticket al webhook (registro en OneDrive + aprobación)
+  const cfg = getConfig();
+  if (cfg.webhook) {
+    toast('📤 Enviando a administración...');
+    for (const t of sel) {
+      try {
+        const payload = {
+          auditor:      t.auditor      || auditor,
+          emailAuditor: t.emailAuditor || cfg.holded || '',
+          tipo:         t.tipo         || '',
+          importe:      parseFloat(t.importe) || 0,
+          iva:          parseFloat(t.iva)     || 0,
+          fecha:        t.fecha        || '',
+          proveedor:    t.proveedor    || '',
+          nif:          t.nif          || '',
+          notas:        t.notas        || '',
+          encargo:      t.encargo      || '',
+          imageUrl:     t.imageUrl     || ''
+        };
+        await fetch(cfg.webhook, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        await new Promise(r => setTimeout(r, 500)); // pausa entre llamadas
+      } catch(e) { console.warn('Webhook parte:', e); }
+    }
+  }
+
+  toast('✅ Parte generado y enviado a administración');
   selectedTickets.clear();
   updateSelBar();
 }
