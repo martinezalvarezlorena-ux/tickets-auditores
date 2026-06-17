@@ -946,15 +946,28 @@ async function doSend(cfg) {
   bar.style.width = '55%';
   lbl.textContent = 'Enviando notificación a Teams...';
 
-  // 2. Teams webhook
+  // 2. Webhook Power Automate — JSON limpio
   if (cfg.webhook) {
     try {
+      const payload = {
+        auditor:      ticket.auditor      || '',
+        emailAuditor: ticket.emailAuditor || cfg.holded || '',
+        tipo:         ticket.tipo         || '',
+        importe:      parseFloat(ticket.importe) || 0,
+        iva:          parseFloat(ticket.iva)     || 0,
+        fecha:        ticket.fecha        || '',
+        proveedor:    ticket.proveedor    || '',
+        nif:          ticket.nif          || '',
+        notas:        ticket.notas        || '',
+        encargo:      ticket.encargo      || '',
+        imageUrl:     imageUrl            || ''
+      };
       await fetch(cfg.webhook, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildCard(ticket, imageUrl, cfg.holded))
+        body: JSON.stringify(payload)
       });
-    } catch (e) { console.warn('Teams webhook:', e); }
+    } catch (e) { console.warn('Webhook:', e); }
   }
 
   bar.style.width = '90%';
