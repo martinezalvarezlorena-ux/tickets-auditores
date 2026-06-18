@@ -1565,20 +1565,33 @@ ${pagesHtml}
         }))
       };
       let enviado = false;
-      // Intento 1: JSON con CORS
+      // Intento 1: JSON con CORS + timeout 8s
       try {
-        const r = await fetch(webhookUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
-        if (r.ok || r.status===202) { toast('✅ Enviado OK (JSON '+r.status+')'); enviado=true; }
-        else { toast('⚠️ Respuesta: '+r.status); }
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 8000);
+        const r = await fetch(webhookUrl, {
+          method:'POST', signal: ctrl.signal,
+          headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
+        });
+        clearTimeout(timer);
+        if (r.ok || r.status===202) { toast('✅ Enviado OK ('+r.status+')'); enviado=true; }
+        else { toast('⚠️ Respuesta PA: '+r.status, 5000); }
       } catch(e1) {
-        toast('⚠️ CORS error: '+e1.message, 5000);
+        const msg = e1.name==='AbortError' ? 'timeout 8s' : e1.message;
+        toast('⚠️ Error JSON: '+msg, 5000);
       }
-      // Intento 2: no-cors
-      if (!enviado) {
+      // Intento 2: sendBeacon (sin CORS, fiable en móvil)
+      if (!enviado && navigator.sendBeacon) {
+        try {
+          const blob = new Blob([JSON.stringify(payload)], {type:'text/plain'});
+          const ok = navigator.sendBeacon(webhookUrl, blob);
+          toast(ok ? '📡 Beacon enviado (sin confirmación)' : '❌ Beacon rechazado', 5000);
+        } catch(e2) { toast('❌ Beacon error: '+e2.message, 5000); }
+      } else if (!enviado) {
         try {
           await fetch(webhookUrl, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain'}, body:JSON.stringify(payload) });
-          toast('📡 Enviado no-cors (sin confirmación)');
-        } catch(e2) { toast('❌ no-cors error: '+e2.message, 5000); }
+          toast('📡 Enviado no-cors', 4000);
+        } catch(e3) { toast('❌ no-cors error: '+e3.message, 5000); }
       }
     } catch(e) { toast('⚠️ Error al enviar: '+e.message); }
   } else {
