@@ -1505,17 +1505,14 @@ ${pagesHtml}
         parteHtml: htmlDoc   // HTML completo para guardar en OneDrive
       };
 
-      const resp = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
+      // no-cors necesario para webhooks de Power Automate desde el navegador
+      delete payload.parteHtml; // eliminar HTML para reducir tamaño del payload
+      await fetch(webhookUrl, {
+        method: 'POST', mode: 'no-cors',
+        headers: {'Content-Type':'text/plain'},
         body: JSON.stringify(payload)
       });
-
-      if (resp.ok || resp.status === 0 || resp.type === 'opaque') {
-        toast('✅ Parte enviado a administración para aprobación');
-      } else {
-        toast('⚠️ No se pudo enviar al webhook (' + resp.status + ')');
-      }
+      toast('✅ Parte enviado a administración para aprobación');
     } catch(e) {
       toast('⚠️ Error al enviar: ' + e.message);
     }
