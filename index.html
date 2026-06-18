@@ -1508,6 +1508,7 @@ ${pagesHtml}
           fecha:     t.fecha,
           tipo:      t.tipo,
           proveedor: t.proveedor || '',
+          nif:       t.nif || '',
           concepto:  t.notas || '',
           importe:   t.importe,
           iva:       t.iva,
@@ -1515,6 +1516,19 @@ ${pagesHtml}
           foto:      t.imageUrl || ''
         }))
       };
+      // Intentar primero con CORS (application/json), si falla usar no-cors
+      try {
+        const r = await fetch(webhookUrl, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(payload)
+        });
+        if (r.ok || r.status===202) {
+          toast('✅ Parte enviado a administración para aprobación');
+          return;
+        }
+      } catch(_) {}
+      // Fallback no-cors
       await fetch(webhookUrl, {
         method: 'POST', mode: 'no-cors',
         headers: {'Content-Type':'text/plain'},
