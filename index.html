@@ -1330,9 +1330,11 @@ function confirmarDesplazYGenerar() {
 }
 
 async function generateParte(datosDesplaz) {
+  toast('⏳ Iniciando parte… (' + selectedTickets.size + ' tickets)', 4000);
   if (selectedTickets.size === 0) { toast('Selecciona al menos un ticket'); return; }
   const h = getHistory();
   const sel = h.filter(t => selectedTickets.has(t.id));
+  toast('📋 Procesando ' + sel.length + ' tickets…', 3000);
   const cfg = getConfig();
   const auditor = cfg.nombre || 'Auditor';
   const webhookUrl = cfg.webhook || '';
