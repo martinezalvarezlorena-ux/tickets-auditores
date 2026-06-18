@@ -1563,13 +1563,21 @@ ${pagesHtml}
           foto: t.imageUrl||''
         }))
       };
+      let enviado = false;
+      // Intento 1: JSON con CORS
       try {
         const r = await fetch(webhookUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
-        if (r.ok || r.status===202) { toast('✅ Parte enviado a administración para aprobación'); }
-        else { throw new Error('status '+r.status); }
-      } catch(_) {
-        await fetch(webhookUrl, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain'}, body:JSON.stringify(payload) });
-        toast('✅ Parte enviado a administración para aprobación');
+        if (r.ok || r.status===202) { toast('✅ Enviado OK (JSON '+r.status+')'); enviado=true; }
+        else { toast('⚠️ Respuesta: '+r.status); }
+      } catch(e1) {
+        toast('⚠️ CORS error: '+e1.message, 5000);
+      }
+      // Intento 2: no-cors
+      if (!enviado) {
+        try {
+          await fetch(webhookUrl, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain'}, body:JSON.stringify(payload) });
+          toast('📡 Enviado no-cors (sin confirmación)');
+        } catch(e2) { toast('❌ no-cors error: '+e2.message, 5000); }
       }
     } catch(e) { toast('⚠️ Error al enviar: '+e.message); }
   } else {
