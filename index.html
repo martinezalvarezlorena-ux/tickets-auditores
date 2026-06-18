@@ -1332,7 +1332,7 @@ async function generateParte(datosDesplaz) {
       const total = imp+ivaEur;
       const desplaz = (t.salida||t.destino||t.km) ? `${t.salida||''}${t.destino?' → '+t.destino:''}${t.km?' ('+t.km+' km)':''}` : '';
       const fechaFmt = t.fecha ? t.fecha.split('-').reverse().join('/') : '';
-      const fotoLink = t.imageUrl ? `<a href="${t.imageUrl}" target="_blank">Ver</a>` : '—';
+      const fotoLink = t.imageUrl ? `<img src="${t.imageUrl}" style="max-width:70px;max-height:55px;object-fit:contain;border:1px solid #E2E8F0;border-radius:3px;display:block">` : '—';
       const conceptoFull = [t.notas||'', desplaz].filter(Boolean).join(' · ') || '—';
       return `<tr>
         <td>${fechaFmt}</td>
@@ -1423,6 +1423,26 @@ async function generateParte(datosDesplaz) {
         </p>
       </div>
     </div>
+
+    ${tickets.filter(t => t.imageUrl).length > 0 ? `
+    <div class="page">
+      <div class="header-report">
+        <div class="logo">${mooreLogo}</div>
+        <div class="title-block">
+          <div class="report-title">ANEXO — JUSTIFICANTES FOTOGRÁFICOS</div>
+          <div class="report-sub">Moore Ibergrup Auditores · Cliente: ${cliente} · ${hoy}</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:12px">
+        ${tickets.filter(t => t.imageUrl).map(t => {
+          const fechaFmt = t.fecha ? t.fecha.split('-').reverse().join('/') : '';
+          return `<div style="border:1px solid #CBD5E1;border-radius:6px;padding:10px;break-inside:avoid">
+            <div style="font-size:9px;color:#64748B;margin-bottom:6px;font-weight:600">${fechaFmt} · ${t.tipo||''} · ${t.proveedor||'—'} · ${(parseFloat(t.importe||0)*(1+(parseFloat(t.iva)||0)/100)).toFixed(2)} €</div>
+            <img src="${t.imageUrl}" style="width:100%;max-height:220px;object-fit:contain;border:1px solid #E2E8F0;border-radius:4px">
+          </div>`;
+        }).join('')}
+      </div>
+    </div>` : ''}
     `;
   });
 
