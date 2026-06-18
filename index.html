@@ -644,7 +644,8 @@
 // ─────────────────────────────────────────
 const CFG_KEY  = 'td_config';
 const DEFAULT_WEBHOOK = 'https://default7234753fa63c44529fc6ed2aad65b8.14.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/7c5980dc21574a69bd1ef07556124dd4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=dLmBU8cN2gRNnGoBNX0oBmOgVKoRXYXfIgK4h_8VINQ';
-const getConfig  = () => { try { const c = JSON.parse(localStorage.getItem(CFG_KEY)) || {}; if (!c.webhook) c.webhook = DEFAULT_WEBHOOK; return c; } catch { return {webhook: DEFAULT_WEBHOOK}; } };
+const isValidWebhook = url => !!(url && url.includes('sig=') && !url.endsWith('sig=') && url.length > 100);
+const getConfig  = () => { try { const c = JSON.parse(localStorage.getItem(CFG_KEY)) || {}; if (!isValidWebhook(c.webhook)) c.webhook = DEFAULT_WEBHOOK; if (!c.holded) c.holded = 'lorena.martinez@msib.es'; return c; } catch { return {webhook: DEFAULT_WEBHOOK, holded: 'lorena.martinez@msib.es'}; } };
 const saveConfig = cfg => localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
 // Historial separado por auditor para que cada usuario vea solo sus tickets
 const getHistKey = () => { const n = (getConfig().nombre||'default').replace(/\s+/g,'_').toLowerCase(); return 'td_history_' + n; };
@@ -1597,16 +1598,17 @@ function loadSettings() {
   const cfg = getConfig();
   if (id('s-nombre'))  id('s-nombre').value  = cfg.nombre  || '';
   if (id('s-email'))   id('s-email').value   = cfg.holded  || '';
-  if (id('s-webhook')) id('s-webhook').value = cfg.webhook || '';
-  if (id('s-holded'))  id('s-holded').value  = cfg.holded  || '';
+  if (id('s-webhook')) id('s-webhook').value = isValidWebhook(cfg.webhook) ? cfg.webhook : DEFAULT_WEBHOOK;
+  if (id('s-holded'))  id('s-holded').value  = cfg.holded  || 'lorena.martinez@msib.es';
 }
 
 function saveSettings() {
   const cfg = getConfig();
   cfg.nombre  = id('s-nombre')  ? id('s-nombre').value.trim()  || cfg.nombre  : cfg.nombre;
   cfg.holded  = (id('s-holded')  ? id('s-holded').value.trim()  : '') ||
-                (id('s-email')   ? id('s-email').value.trim()   : '') || cfg.holded;
-  cfg.webhook = id('s-webhook') ? id('s-webhook').value.trim() || cfg.webhook : cfg.webhook;
+                (id('s-email')   ? id('s-email').value.trim()   : '') || cfg.holded || 'lorena.martinez@msib.es';
+  const newWh = id('s-webhook') ? id('s-webhook').value.trim() : '';
+  cfg.webhook = isValidWebhook(newWh) ? newWh : DEFAULT_WEBHOOK;
   saveConfig(cfg);
   toast('✅ Configuración guardada');
 }
