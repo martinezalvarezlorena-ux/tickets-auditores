@@ -1455,11 +1455,13 @@ async function generateParte(datosDesplaz) {
   .data-table tr:nth-child(even) td { background:#F8FAFC; }
   .num { text-align:right; font-variant-numeric:tabular-nums; }
   .print-btn { position:fixed; top:16px; right:16px; background:#1E293B; color:white; border:none; padding:10px 20px; border-radius:6px; font-size:13px; cursor:pointer; z-index:999; }
-  @media print { .print-btn { display:none; } .page { padding:15px 20px; } }
+  .save-btn  { position:fixed; top:16px; right:180px; background:#16A34A; color:white; border:none; padding:10px 20px; border-radius:6px; font-size:13px; cursor:pointer; z-index:999; }
+  @media print { .print-btn,.save-btn { display:none; } .page { padding:15px 20px; } }
 </style>
 </head>
 <body>
 <button class="print-btn" onclick="window.print()">🖨️ Imprimir / PDF</button>
+<button class="save-btn" onclick="window.close()">✅ Hecho — cerrar</button>
 ${pagesHtml}
 </body>
 </html>`;
@@ -1472,16 +1474,53 @@ ${pagesHtml}
     toast('Activa las ventanas emergentes para ver el parte');
   }
 
-  // Enviar via webhook si está configurado
+  // Enviar via webhook para aprobación y OneDrive
   if (webhookUrl) {
     try {
-      const resumen = sel.map(t => `${t.fecha} | ${t.tipo} | ${t.proveedor||''} | ${parseFloat(t.importe||0).toFixed(2)}€`).join('\n');
-      await fetch(webhookUrl, {
-        method: 'POST', mode: 'no-cors',
+      toast('📤 Enviando a administración…', 3000);
+
+      // Payload completo para Power Automate
+      const payload = {
+        auditor:       auditor,
+        email:         cfg.holded || '',
+        fecha:         hoy,
+        cliente:       sel[0]?.cliente || '',
+        totalGeneral:  totGeneral.toFixed(2),
+        totTransporte: totTransporte.toFixed(2),
+        totAlojamiento:totAlojamiento.toFixed(2),
+        totDietas:     totDietas.toFixed(2),
+        totOtros:      totOtros.toFixed(2),
+        numTickets:    sel.length,
+        desplazamiento: datosDesplaz || null,
+        tickets: sel.map(t => ({
+          fecha:      t.fecha,
+          tipo:       t.tipo,
+          proveedor:  t.proveedor || '',
+          concepto:   t.concepto || '',
+          importe:    t.importe,
+          iva:        t.iva,
+          total:      (parseFloat(t.importe||0) * (1 + (parseFloat(t.iva)||0)/100)).toFixed(2),
+          foto:       t.imageUrl || ''
+        })),
+        parteHtml: htmlDoc   // HTML completo para guardar en OneDrive
+      };
+
+      const resp = await fetch(webhookUrl, {
+        method: 'POST',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ auditor, tickets: sel.length, resumen, fecha: hoy })
+        body: JSON.stringify(payload)
       });
-    } catch(e) { /* silencioso */ }
+
+      if (resp.ok || resp.status === 0 || resp.type === 'opaque') {
+        toast('✅ Parte enviado a administración para aprobación');
+      } else {
+        toast('⚠️ No se pudo enviar al webhook (' + resp.status + ')');
+      }
+    } catch(e) {
+      toast('⚠️ Error al enviar: ' + e.message);
+    }
+  } else {
+    toast('⚠️ Configura el Webhook URL en Ajustes para enviar a administración');
   }
 }
 
@@ -1490,14 +1529,18 @@ ${pagesHtml}
 // ─────────────────────────────────────────
 function loadSettings() {
   const cfg = getConfig();
-  if (id('s-nombre')) id('s-nombre').value = cfg.nombre || '';
-  if (id('s-email'))  id('s-email').value  = cfg.holded || '';
+  if (id('s-nombre'))  id('s-nombre').value  = cfg.nombre  || '';
+  if (id('s-email'))   id('s-email').value   = cfg.holded  || '';
+  if (id('s-webhook')) id('s-webhook').value = cfg.webhook || '';
+  if (id('s-holded'))  id('s-holded').value  = cfg.holded  || '';
 }
 
 function saveSettings() {
   const cfg = getConfig();
-  cfg.nombre = id('s-nombre') ? id('s-nombre').value.trim() || cfg.nombre : cfg.nombre;
-  cfg.holded = id('s-email')  ? id('s-email').value.trim()  || cfg.holded : cfg.holded;
+  cfg.nombre  = id('s-nombre')  ? id('s-nombre').value.trim()  || cfg.nombre  : cfg.nombre;
+  cfg.holded  = (id('s-holded')  ? id('s-holded').value.trim()  : '') ||
+                (id('s-email')   ? id('s-email').value.trim()   : '') || cfg.holded;
+  cfg.webhook = id('s-webhook') ? id('s-webhook').value.trim() || cfg.webhook : cfg.webhook;
   saveConfig(cfg);
   toast('✅ Configuración guardada');
 }
