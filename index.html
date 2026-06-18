@@ -1531,15 +1531,7 @@ ${pagesHtml}
 </body>
 </html>`;
 
-  const w = window.open('', '_blank');
-  if (w) {
-    w.document.write(htmlDoc);
-    w.document.close();
-  } else {
-    toast('Activa las ventanas emergentes para ver el parte');
-  }
-
-  // Calcular totales globales para el webhook (fuera del forEach de grupos)
+  // ── WEBHOOK PRIMERO (antes de abrir ventana, funciona en móvil) ──
   let wTotT=0, wTotA=0, wTotD=0, wTotO=0;
   sel.forEach(t => {
     const imp = parseFloat(t.importe)||0;
@@ -1553,59 +1545,39 @@ ${pagesHtml}
   if (datosDesplaz && datosDesplaz.importeKm) wTotT += parseFloat(datosDesplaz.importeKm)||0;
   const wTotGeneral = wTotT+wTotA+wTotD+wTotO;
 
-  // Enviar via webhook para aprobación y OneDrive
   if (webhookUrl) {
     try {
       toast('📤 Enviando a administración…', 3000);
       const payload = {
-        auditor:        auditor,
-        email:          cfg.holded || '',
-        fecha:          hoy,
-        cliente:        sel[0]?.encargo || '',
-        totalGeneral:   wTotGeneral.toFixed(2),
-        totTransporte:  wTotT.toFixed(2),
-        totAlojamiento: wTotA.toFixed(2),
-        totDietas:      wTotD.toFixed(2),
-        totOtros:       wTotO.toFixed(2),
-        numTickets:     sel.length,
-        desplazamiento: datosDesplaz || null,
+        auditor: auditor, email: cfg.holded||'', fecha: hoy,
+        cliente: sel[0]?.encargo||'',
+        totalGeneral: wTotGeneral.toFixed(2), totTransporte: wTotT.toFixed(2),
+        totAlojamiento: wTotA.toFixed(2), totDietas: wTotD.toFixed(2), totOtros: wTotO.toFixed(2),
+        numTickets: sel.length, desplazamiento: datosDesplaz||null,
         tickets: sel.map(t => ({
-          fecha:     t.fecha,
-          tipo:      t.tipo,
-          proveedor: t.proveedor || '',
-          nif:       t.nif || '',
-          concepto:  t.notas || '',
-          importe:   t.importe,
-          iva:       t.iva,
-          total:     (parseFloat(t.importe||0)*(1+(parseFloat(t.iva)||0)/100)).toFixed(2),
-          foto:      t.imageUrl || ''
+          fecha: t.fecha, tipo: t.tipo, proveedor: t.proveedor||'', nif: t.nif||'',
+          concepto: t.notas||'', importe: t.importe, iva: t.iva,
+          total: (parseFloat(t.importe||0)*(1+(parseFloat(t.iva)||0)/100)).toFixed(2),
+          foto: t.imageUrl||''
         }))
       };
-      // Intentar primero con CORS (application/json), si falla usar no-cors
       try {
-        const r = await fetch(webhookUrl, {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify(payload)
-        });
-        if (r.ok || r.status===202) {
-          toast('✅ Parte enviado a administración para aprobación');
-          return;
-        }
-      } catch(_) {}
-      // Fallback no-cors
-      await fetch(webhookUrl, {
-        method: 'POST', mode: 'no-cors',
-        headers: {'Content-Type':'text/plain'},
-        body: JSON.stringify(payload)
-      });
-      toast('✅ Parte enviado a administración para aprobación');
-    } catch(e) {
-      toast('⚠️ Error al enviar: ' + e.message);
-    }
+        const r = await fetch(webhookUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+        if (r.ok || r.status===202) { toast('✅ Parte enviado a administración para aprobación'); }
+        else { throw new Error('status '+r.status); }
+      } catch(_) {
+        await fetch(webhookUrl, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain'}, body:JSON.stringify(payload) });
+        toast('✅ Parte enviado a administración para aprobación');
+      }
+    } catch(e) { toast('⚠️ Error al enviar: '+e.message); }
   } else {
     toast('⚠️ Configura el Webhook URL en Ajustes para enviar a administración');
   }
+
+  // ── ABRIR PARTE (después del webhook) ──
+  const w = window.open('', '_blank');
+  if (w) { w.document.write(htmlDoc); w.document.close(); }
+  else { toast('📄 Parte generado. Activa ventanas emergentes para verlo en pantalla completa.'); }
 }
 
 // ─────────────────────────────────────────
