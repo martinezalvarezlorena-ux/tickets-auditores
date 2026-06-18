@@ -626,19 +626,19 @@
 //  CONFIG & STORAGE
 // ─────────────────────────────────────────
 const CFG_KEY  = 'td_config';
-const HIST_KEY = 'td_history';
-
 const DEFAULT_WEBHOOK = 'https://default7234753fa63c44529fc6ed2aad65b8.14.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/7c5980dc21574a69bd1ef07556124dd4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=dLmBU8cN2gRNnGoBNX0oBmOgVKoRXYXfIgK4h_8VINQ';
 const getConfig  = () => { try { const c = JSON.parse(localStorage.getItem(CFG_KEY)) || {}; if (!c.webhook) c.webhook = DEFAULT_WEBHOOK; return c; } catch { return {webhook: DEFAULT_WEBHOOK}; } };
-const getHistory = () => { try { return JSON.parse(localStorage.getItem(HIST_KEY)) || []; } catch { return []; } };
 const saveConfig = cfg => localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+// Historial separado por auditor para que cada usuario vea solo sus tickets
+const getHistKey = () => { const n = (getConfig().nombre||'default').replace(/\s+/g,'_').toLowerCase(); return 'td_history_' + n; };
+const getHistory = () => { try { return JSON.parse(localStorage.getItem(getHistKey())) || []; } catch { return []; } };
 const id = s => document.getElementById(s);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 function addHistory(ticket) {
   const h = getHistory();
   h.unshift({ ...ticket, id: Date.now(), sentAt: new Date().toISOString() });
-  localStorage.setItem(HIST_KEY, JSON.stringify(h.slice(0, 60)));
+  localStorage.setItem(getHistKey(), JSON.stringify(h.slice(0, 60)));
 }
 
 // ─────────────────────────────────────────
@@ -1592,7 +1592,7 @@ function saveSettings() {
 
 function clearHistory() {
   if (!confirm('¿Borrar todos los tickets guardados?')) return;
-  localStorage.removeItem(HIST_KEY);
+  localStorage.removeItem(getHistKey());
   renderHistory();
   toast('🗑️ Historial borrado');
 }
