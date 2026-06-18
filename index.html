@@ -1321,6 +1321,8 @@ async function generateParte(datosDesplaz) {
       else if (t.tipo&&(t.tipo.includes('Transporte')||t.tipo.includes('Tren')||t.tipo.includes('Combustible')||t.tipo.includes('Kilometraje'))) totTransporte+=total;
       else totOtros+=total;
     });
+    // Sumar kilometraje del modal al transporte
+    if (datosDesplaz && datosDesplaz.importeKm) totTransporte += parseFloat(datosDesplaz.importeKm)||0;
     const totGeneral = totTransporte+totAlojamiento+totDietas+totOtros;
 
     const filas = tickets.map(t => {
