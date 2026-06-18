@@ -1474,39 +1474,47 @@ ${pagesHtml}
     toast('Activa las ventanas emergentes para ver el parte');
   }
 
+  // Calcular totales globales para el webhook (fuera del forEach de grupos)
+  let wTotT=0, wTotA=0, wTotD=0, wTotO=0;
+  sel.forEach(t => {
+    const imp = parseFloat(t.importe)||0;
+    const ivaPct = parseFloat(t.iva)||0;
+    const tot = imp + imp*ivaPct/100;
+    if (t.tipo&&t.tipo.includes('Hotel'))      wTotA+=tot;
+    else if (t.tipo&&t.tipo.includes('Dieta')) wTotD+=tot;
+    else if (t.tipo&&(t.tipo.includes('Transporte')||t.tipo.includes('Tren')||t.tipo.includes('Combustible')||t.tipo.includes('Kilometraje'))) wTotT+=tot;
+    else wTotO+=tot;
+  });
+  if (datosDesplaz && datosDesplaz.importeKm) wTotT += parseFloat(datosDesplaz.importeKm)||0;
+  const wTotGeneral = wTotT+wTotA+wTotD+wTotO;
+
   // Enviar via webhook para aprobación y OneDrive
   if (webhookUrl) {
     try {
       toast('📤 Enviando a administración…', 3000);
-
-      // Payload completo para Power Automate
       const payload = {
-        auditor:       auditor,
-        email:         cfg.holded || '',
-        fecha:         hoy,
-        cliente:       sel[0]?.cliente || '',
-        totalGeneral:  totGeneral.toFixed(2),
-        totTransporte: totTransporte.toFixed(2),
-        totAlojamiento:totAlojamiento.toFixed(2),
-        totDietas:     totDietas.toFixed(2),
-        totOtros:      totOtros.toFixed(2),
-        numTickets:    sel.length,
+        auditor:        auditor,
+        email:          cfg.holded || '',
+        fecha:          hoy,
+        cliente:        sel[0]?.encargo || '',
+        totalGeneral:   wTotGeneral.toFixed(2),
+        totTransporte:  wTotT.toFixed(2),
+        totAlojamiento: wTotA.toFixed(2),
+        totDietas:      wTotD.toFixed(2),
+        totOtros:       wTotO.toFixed(2),
+        numTickets:     sel.length,
         desplazamiento: datosDesplaz || null,
         tickets: sel.map(t => ({
-          fecha:      t.fecha,
-          tipo:       t.tipo,
-          proveedor:  t.proveedor || '',
-          concepto:   t.concepto || '',
-          importe:    t.importe,
-          iva:        t.iva,
-          total:      (parseFloat(t.importe||0) * (1 + (parseFloat(t.iva)||0)/100)).toFixed(2),
-          foto:       t.imageUrl || ''
-        })),
-        parteHtml: htmlDoc   // HTML completo para guardar en OneDrive
+          fecha:     t.fecha,
+          tipo:      t.tipo,
+          proveedor: t.proveedor || '',
+          concepto:  t.notas || '',
+          importe:   t.importe,
+          iva:       t.iva,
+          total:     (parseFloat(t.importe||0)*(1+(parseFloat(t.iva)||0)/100)).toFixed(2),
+          foto:      t.imageUrl || ''
+        }))
       };
-
-      // no-cors necesario para webhooks de Power Automate desde el navegador
-      delete payload.parteHtml; // eliminar HTML para reducir tamaño del payload
       await fetch(webhookUrl, {
         method: 'POST', mode: 'no-cors',
         headers: {'Content-Type':'text/plain'},
@@ -1561,16 +1569,6 @@ function toast(msg, ms=2800) {
   document.body.appendChild(t);
   setTimeout(() => t.remove(), ms);
 }
-
-// ─────────────────────────────────────────
-//  INIT
-// ─────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  const cfg = getConfig();
-  if (cfg.ok) {
-    goTo('screen-home');
-  }
-});
 </script>
 </body>
 </html>
