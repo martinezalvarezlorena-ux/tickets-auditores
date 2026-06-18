@@ -628,7 +628,8 @@
 const CFG_KEY  = 'td_config';
 const HIST_KEY = 'td_history';
 
-const getConfig  = () => { try { return JSON.parse(localStorage.getItem(CFG_KEY))  || {}; } catch { return {}; } };
+const DEFAULT_WEBHOOK = 'https://default7234753fa63c44529fc6ed2aad65b8.14.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/7c5980dc21574a69bd1ef07556124dd4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=dLmBU8cN2gRNnGoBNX0oBmOgVKoRXYXfIgK4h_8VINQ';
+const getConfig  = () => { try { const c = JSON.parse(localStorage.getItem(CFG_KEY)) || {}; if (!c.webhook) c.webhook = DEFAULT_WEBHOOK; return c; } catch { return {webhook: DEFAULT_WEBHOOK}; } };
 const getHistory = () => { try { return JSON.parse(localStorage.getItem(HIST_KEY)) || []; } catch { return []; } };
 const saveConfig = cfg => localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
 const id = s => document.getElementById(s);
@@ -1325,6 +1326,29 @@ async function generateParte(datosDesplaz) {
     if (datosDesplaz && datosDesplaz.importeKm) totTransporte += parseFloat(datosDesplaz.importeKm)||0;
     const totGeneral = totTransporte+totAlojamiento+totDietas+totOtros;
 
+    // Construir anexo de fotos por separado (evita template literals anidados)
+    let anexoHtml = '';
+    const ticketsFoto = tickets.filter(function(t){ return t.imageUrl; });
+    if (ticketsFoto.length > 0) {
+      let fotoCeldas = '';
+      ticketsFoto.forEach(function(t) {
+        const ff = t.fecha ? t.fecha.split('-').reverse().join('/') : '';
+        const tot = (parseFloat(t.importe||0)*(1+(parseFloat(t.iva)||0)/100)).toFixed(2);
+        fotoCeldas += '<div style="border:1px solid #CBD5E1;border-radius:6px;padding:10px;break-inside:avoid">'
+          + '<div style="font-size:9px;color:#64748B;margin-bottom:6px;font-weight:600">'
+          + ff + ' · ' + (t.tipo||'') + ' · ' + (t.proveedor||'—') + ' · ' + tot + ' €</div>'
+          + '<img src="' + t.imageUrl + '" style="width:100%;max-height:220px;object-fit:contain;border:1px solid #E2E8F0;border-radius:4px">'
+          + '</div>';
+      });
+      anexoHtml = '<div class="page">'
+        + '<div class="header-report"><div class="logo">' + mooreLogo + '</div>'
+        + '<div class="title-block"><div class="report-title">ANEXO — JUSTIFICANTES FOTOGRÁFICOS</div>'
+        + '<div class="report-sub">Moore Ibergrup Auditores · Cliente: ' + cliente + ' · ' + hoy + '</div>'
+        + '</div></div>'
+        + '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:12px">'
+        + fotoCeldas + '</div></div>';
+    }
+
     const filas = tickets.map(t => {
       const imp = parseFloat(t.importe)||0;
       const ivaPct = parseFloat(t.iva)||0;
@@ -1424,25 +1448,7 @@ async function generateParte(datosDesplaz) {
       </div>
     </div>
 
-    ${tickets.filter(t => t.imageUrl).length > 0 ? `
-    <div class="page">
-      <div class="header-report">
-        <div class="logo">${mooreLogo}</div>
-        <div class="title-block">
-          <div class="report-title">ANEXO — JUSTIFICANTES FOTOGRÁFICOS</div>
-          <div class="report-sub">Moore Ibergrup Auditores · Cliente: ${cliente} · ${hoy}</div>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:12px">
-        ${tickets.filter(t => t.imageUrl).map(t => {
-          const fechaFmt = t.fecha ? t.fecha.split('-').reverse().join('/') : '';
-          return `<div style="border:1px solid #CBD5E1;border-radius:6px;padding:10px;break-inside:avoid">
-            <div style="font-size:9px;color:#64748B;margin-bottom:6px;font-weight:600">${fechaFmt} · ${t.tipo||''} · ${t.proveedor||'—'} · ${(parseFloat(t.importe||0)*(1+(parseFloat(t.iva)||0)/100)).toFixed(2)} €</div>
-            <img src="${t.imageUrl}" style="width:100%;max-height:220px;object-fit:contain;border:1px solid #E2E8F0;border-radius:4px">
-          </div>`;
-        }).join('')}
-      </div>
-    </div>` : ''}
+    ` + anexoHtml + `
     `;
   });
 
