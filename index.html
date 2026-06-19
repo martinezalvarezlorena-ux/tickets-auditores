@@ -333,11 +333,15 @@
     <img id="previewImg" alt="Vista previa">
 
     <div id="btns-captura">
-      <button class="btn btn-primary" onclick="startCamera()">📷 Usar la cámara</button>
+      <button class="btn btn-primary" onclick="startCamera()">📷 Abrir cámara</button>
       <div class="or">o</div>
-      <label class="btn btn-outline" style="cursor:pointer;margin-bottom:10px">
-        🖼️ Subir imagen del carrete
-        <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="handleFile(this)">
+      <label class="btn btn-outline" style="cursor:pointer;margin-bottom:6px">
+        📸 Hacer foto con cámara nativa
+        <input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none" onchange="handleFile(this)">
+      </label>
+      <label class="btn btn-ghost" style="cursor:pointer;margin-bottom:10px;font-size:13px">
+        🖼️ Elegir del carrete
+        <input type="file" id="fileInput2" accept="image/*" style="display:none" onchange="handleFile(this)">
       </label>
     </div>
 
@@ -701,9 +705,10 @@ function goTo(id) {
   document.getElementById(id).classList.add('active');
   currentScreen = id;
   if (id === 'screen-login')    initLogin();
-  if (id === 'screen-home')     initHome();
+  if (id === 'screen-home')     { stopCamera(); initHome(); }
   if (id === 'screen-history')  renderHistory();
   if (id === 'screen-settings') loadSettings();
+  if (id === 'screen-capture')  { resetCapture(); startCamera(); }
   window.scrollTo(0, 0);
 }
 
@@ -856,6 +861,7 @@ function resetCapture() {
   id('btns-captura').style.display = 'block';
   id('btn-capturar').style.display = 'none';
   id('fileInput').value = '';
+  if (id('fileInput2')) id('fileInput2').value = '';
 }
 
 // ─────────────────────────────────────────
