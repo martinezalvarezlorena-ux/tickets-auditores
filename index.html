@@ -1556,16 +1556,23 @@ async function generateParte(datosDesplaz) {
   @media print { .print-btn,.save-btn,.send-btn { display:none; } .page { padding:15px 20px; } }
 </style>
 <script>
-async function enviarAdmin() {
+function enviarAdmin() {
   const btn = document.getElementById('send-btn');
-  btn.disabled = true; btn.textContent = '⏳ Enviando…';
-  try {
-    const payload = JSON.parse(decodeURIComponent(atob(btn.dataset.p)));
-    const r = await fetch('https://msib-webhook.martinezalvarezlorena.workers.dev', {
-      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
-    });
-    btn.textContent = r.ok ? '✅ Enviado a Administración' : '⚠️ Error '+r.status;
-  } catch(e) { btn.disabled=false; btn.textContent = '❌ Error: '+e.message; }
+  const p = JSON.parse(decodeURIComponent(atob(btn.dataset.p)));
+  const asunto = encodeURIComponent('Parte de gastos — ' + p.auditor + ' — ' + p.fecha);
+  const cuerpo = encodeURIComponent(
+    'Parte de gastos de ' + p.auditor + '\n' +
+    'Fecha: ' + p.fecha + '\n' +
+    'Cliente/Encargo: ' + (p.cliente||'—') + '\n' +
+    'Total general: ' + p.totalGeneral + ' €\n' +
+    '  Transporte: ' + p.totTransporte + ' €\n' +
+    '  Alojamiento: ' + p.totAlojamiento + ' €\n' +
+    '  Dietas: ' + p.totDietas + ' €\n' +
+    '  Otros: ' + p.totOtros + ' €\n' +
+    'Nº tickets: ' + p.numTickets + '\n\n' +
+    'Parte generado desde la app de tickets Moore Ibergrup.'
+  );
+  window.location.href = 'mailto:lorena.martinez@msib.es?subject=' + asunto + '&body=' + cuerpo;
 }
 <\/script>
 </head>
