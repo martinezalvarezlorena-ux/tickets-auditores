@@ -593,6 +593,35 @@
       </div>
     </div>
 
+    <!-- Acompañantes -->
+    <div class="fg" style="margin-top:12px;border-top:1px solid #E2E8F0;padding-top:12px">
+      <label class="label">👥 ¿Incluye acompañantes?</label>
+      <div style="display:flex;gap:16px;margin-top:4px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer">
+          <input type="radio" name="tiene-acomp" id="acomp-si" value="si" onchange="toggleAcomp()"> Sí
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer">
+          <input type="radio" name="tiene-acomp" id="acomp-no" value="no" onchange="toggleAcomp()" checked> No
+        </label>
+      </div>
+    </div>
+    <div id="modal-acomp-fields" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="fg">
+          <label class="label">Nº de acompañantes</label>
+          <input class="input" id="md-acomp-num" type="number" min="1" step="1" placeholder="2">
+        </div>
+        <div class="fg">
+          <label class="label">Relación / Motivo</label>
+          <input class="input" id="md-acomp-relacion" type="text" placeholder="Ej: Clientes, Equipo auditoría">
+        </div>
+      </div>
+      <div class="fg">
+        <label class="label">Nombres (separados por coma)</label>
+        <input class="input" id="md-acomp-nombres" type="text" placeholder="Ej: Juan García, Ana López">
+      </div>
+    </div>
+
     <div style="display:flex;gap:10px;margin-top:8px">
       <button class="btn btn-ghost" style="margin:0;flex:1" onclick="cerrarModalDesplaz()">Cancelar</button>
       <button class="btn btn-success" style="margin:0;flex:2" onclick="confirmarDesplazYGenerar()">📊 Generar parte →</button>
@@ -1297,6 +1326,11 @@ function abrirModalDesplaz() {
   id('md-tarifa').value = '0.26';
   id('md-importe-km').value = '';
   id('veh-si').checked = true;
+  id('acomp-no').checked = true;
+  id('modal-acomp-fields').style.display = 'none';
+  id('md-acomp-num').value = '';
+  id('md-acomp-relacion').value = '';
+  id('md-acomp-nombres').value = '';
   id('modal-desplaz').style.display = 'block';
 }
 
@@ -1307,6 +1341,11 @@ function cerrarModalDesplaz() {
 function toggleModalKm() {
   const tieneDesplaz = id('desplaz-si').checked;
   id('modal-km-fields').style.display = tieneDesplaz ? 'block' : 'none';
+}
+
+function toggleAcomp() {
+  const tieneAcomp = id('acomp-si').checked;
+  id('modal-acomp-fields').style.display = tieneAcomp ? 'block' : 'none';
 }
 
 function calcModalKm() {
@@ -1326,11 +1365,17 @@ function confirmarDesplazYGenerar() {
     tarifa:    id('md-tarifa').value,
     importeKm: id('md-importe-km').value
   } : null;
+  const tieneAcomp = id('acomp-si').checked;
+  const datosAcomp = tieneAcomp ? {
+    num:      id('md-acomp-num').value.trim(),
+    relacion: id('md-acomp-relacion').value.trim(),
+    nombres:  id('md-acomp-nombres').value.trim()
+  } : null;
   cerrarModalDesplaz();
-  generateParte(datosDesplaz);
+  generateParte(datosDesplaz, datosAcomp);
 }
 
-async function generateParte(datosDesplaz) {
+async function generateParte(datosDesplaz, datosAcomp) {
   toast('⏳ Iniciando parte… (' + selectedTickets.size + ' tickets)', 4000);
   if (selectedTickets.size === 0) { toast('Selecciona al menos un ticket'); return; }
   const h = getHistory();
@@ -1448,6 +1493,15 @@ async function generateParte(datosDesplaz) {
           <tr><td class="lbl">Vehículo particular</td><td>${datosDesplaz.vehiculo}</td><td class="lbl">Kilómetros</td><td>${datosDesplaz.km||'—'} km</td></tr>
           <tr><td class="lbl">Tarifa exenta AEAT (E)</td><td>0,26 €/km</td><td class="lbl">Tarifa adicional empresa (E)</td><td>${((parseFloat(datosDesplaz.tarifa)||0)-0.26).toFixed(2)} €/km</td></tr>
           <tr><td class="lbl">Tarifa total €/km</td><td>${datosDesplaz.tarifa||'—'} €</td><td class="lbl">Importe kilometraje</td><td><strong>${datosDesplaz.importeKm||'—'} €</strong></td></tr>
+        </table>
+      </div>` : ''}
+
+      ${datosAcomp ? `
+      <div class="section-box" style="margin-top:16px">
+        <div class="section-title">👥 ACOMPAÑANTES</div>
+        <table class="info-table">
+          <tr><td class="lbl">Nº de acompañantes</td><td>${datosAcomp.num||'—'}</td><td class="lbl">Relación / Motivo</td><td>${datosAcomp.relacion||'—'}</td></tr>
+          <tr><td class="lbl">Nombres</td><td colspan="3">${datosAcomp.nombres||'—'}</td></tr>
         </table>
       </div>` : ''}
 
