@@ -1494,6 +1494,34 @@ async function generateParte(datosDesplaz) {
     `;
   });
 
+  // ── CALCULAR TOTALES Y PAYLOAD (antes del htmlDoc para poder usarlo en el botón) ──
+  let wTotT=0, wTotA=0, wTotD=0, wTotO=0;
+  sel.forEach(t => {
+    const imp = parseFloat(t.importe)||0;
+    const ivaPct = parseFloat(t.iva)||0;
+    const tot = imp + imp*ivaPct/100;
+    if (t.tipo&&t.tipo.includes('Hotel'))      wTotA+=tot;
+    else if (t.tipo&&t.tipo.includes('Dieta')) wTotD+=tot;
+    else if (t.tipo&&(t.tipo.includes('Transporte')||t.tipo.includes('Tren')||t.tipo.includes('Combustible')||t.tipo.includes('Kilometraje'))) wTotT+=tot;
+    else wTotO+=tot;
+  });
+  if (datosDesplaz && datosDesplaz.importeKm) wTotT += parseFloat(datosDesplaz.importeKm)||0;
+  const wTotGeneral = wTotT+wTotA+wTotD+wTotO;
+  const payload = {
+    auditor: auditor, email: cfg.holded||'', fecha: hoy,
+    cliente: sel[0]?.encargo||'',
+    totalGeneral: wTotGeneral.toFixed(2), totTransporte: wTotT.toFixed(2),
+    totAlojamiento: wTotA.toFixed(2), totDietas: wTotD.toFixed(2), totOtros: wTotO.toFixed(2),
+    numTickets: sel.length, desplazamiento: datosDesplaz||null,
+    tickets: sel.map(t => ({
+      fecha: t.fecha, tipo: t.tipo, proveedor: t.proveedor||'', nif: t.nif||'',
+      concepto: t.notas||'', importe: parseFloat(t.importe||0)||0, iva: parseFloat(t.iva||0)||0,
+      total: (parseFloat(t.importe||0)*(1+(parseFloat(t.iva)||0)/100)).toFixed(2),
+      foto: t.imageUrl||''
+    }))
+  };
+  const payloadB64 = btoa(encodeURIComponent(JSON.stringify(payload)));
+
   // Build full HTML document
   const htmlDoc = `<!DOCTYPE html>
 <html lang="es">
@@ -1524,46 +1552,35 @@ async function generateParte(datosDesplaz) {
   .num { text-align:right; font-variant-numeric:tabular-nums; }
   .print-btn { position:fixed; top:16px; right:16px; background:#1E293B; color:white; border:none; padding:10px 20px; border-radius:6px; font-size:13px; cursor:pointer; z-index:999; }
   .save-btn  { position:fixed; top:16px; right:180px; background:#16A34A; color:white; border:none; padding:10px 20px; border-radius:6px; font-size:13px; cursor:pointer; z-index:999; }
-  @media print { .print-btn,.save-btn { display:none; } .page { padding:15px 20px; } }
+  .send-btn  { position:fixed; top:16px; right:360px; background:#2563EB; color:white; border:none; padding:10px 20px; border-radius:6px; font-size:13px; cursor:pointer; z-index:999; }
+  @media print { .print-btn,.save-btn,.send-btn { display:none; } .page { padding:15px 20px; } }
 </style>
+<script>
+async function enviarAdmin() {
+  const btn = document.getElementById('send-btn');
+  btn.disabled = true; btn.textContent = '⏳ Enviando…';
+  try {
+    const payload = JSON.parse(decodeURIComponent(atob(btn.dataset.p)));
+    const r = await fetch('https://msib-webhook.martinezalvarezlorena.workers.dev', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
+    });
+    btn.textContent = r.ok ? '✅ Enviado a Administración' : '⚠️ Error '+r.status;
+  } catch(e) { btn.disabled=false; btn.textContent = '❌ Error: '+e.message; }
+}
+</script>
 </head>
 <body>
 <button class="print-btn" onclick="window.print()">🖨️ Imprimir / PDF</button>
 <button class="save-btn" onclick="window.close()">✅ Hecho — cerrar</button>
+<button id="send-btn" class="send-btn" onclick="enviarAdmin()" data-p="${payloadB64}">📤 Enviar a Administración</button>
 ${pagesHtml}
 </body>
 </html>`;
 
-  // ── WEBHOOK PRIMERO (antes de abrir ventana, funciona en móvil) ──
-  let wTotT=0, wTotA=0, wTotD=0, wTotO=0;
-  sel.forEach(t => {
-    const imp = parseFloat(t.importe)||0;
-    const ivaPct = parseFloat(t.iva)||0;
-    const tot = imp + imp*ivaPct/100;
-    if (t.tipo&&t.tipo.includes('Hotel'))      wTotA+=tot;
-    else if (t.tipo&&t.tipo.includes('Dieta')) wTotD+=tot;
-    else if (t.tipo&&(t.tipo.includes('Transporte')||t.tipo.includes('Tren')||t.tipo.includes('Combustible')||t.tipo.includes('Kilometraje'))) wTotT+=tot;
-    else wTotO+=tot;
-  });
-  if (datosDesplaz && datosDesplaz.importeKm) wTotT += parseFloat(datosDesplaz.importeKm)||0;
-  const wTotGeneral = wTotT+wTotA+wTotD+wTotO;
-
+  // ── WEBHOOK (usa payload ya construido arriba) ──
   if (webhookUrl) {
     try {
       toast('📤 Enviando a administración…', 3000);
-      const payload = {
-        auditor: auditor, email: cfg.holded||'', fecha: hoy,
-        cliente: sel[0]?.encargo||'',
-        totalGeneral: wTotGeneral.toFixed(2), totTransporte: wTotT.toFixed(2),
-        totAlojamiento: wTotA.toFixed(2), totDietas: wTotD.toFixed(2), totOtros: wTotO.toFixed(2),
-        numTickets: sel.length, desplazamiento: datosDesplaz||null,
-        tickets: sel.map(t => ({
-          fecha: t.fecha, tipo: t.tipo, proveedor: t.proveedor||'', nif: t.nif||'',
-          concepto: t.notas||'', importe: parseFloat(t.importe||0)||0, iva: parseFloat(t.iva||0)||0,
-          total: (parseFloat(t.importe||0)*(1+(parseFloat(t.iva)||0)/100)).toFixed(2),
-          foto: t.imageUrl||''
-        }))
-      };
       let enviado = false;
       // Intento 1: JSON con CORS + timeout 8s
       try {
