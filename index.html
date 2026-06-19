@@ -1559,7 +1559,7 @@ ${pagesHtml}
         numTickets: sel.length, desplazamiento: datosDesplaz||null,
         tickets: sel.map(t => ({
           fecha: t.fecha, tipo: t.tipo, proveedor: t.proveedor||'', nif: t.nif||'',
-          concepto: t.notas||'', importe: t.importe, iva: t.iva,
+          concepto: t.notas||'', importe: parseFloat(t.importe||0)||0, iva: parseFloat(t.iva||0)||0,
           total: (parseFloat(t.importe||0)*(1+(parseFloat(t.iva)||0)/100)).toFixed(2),
           foto: t.imageUrl||''
         }))
