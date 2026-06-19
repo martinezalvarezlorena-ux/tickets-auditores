@@ -1446,7 +1446,8 @@ async function generateParte(datosDesplaz) {
           <tr><td class="lbl">Lugar de origen</td><td>${datosDesplaz.origen||'—'}</td><td class="lbl">Lugar de destino</td><td>${datosDesplaz.destino||'—'}</td></tr>
           <tr><td class="lbl">Motivo</td><td colspan="3">${datosDesplaz.motivo||'—'}</td></tr>
           <tr><td class="lbl">Vehículo particular</td><td>${datosDesplaz.vehiculo}</td><td class="lbl">Kilómetros</td><td>${datosDesplaz.km||'—'} km</td></tr>
-          <tr><td class="lbl">Tarifa €/km</td><td>${datosDesplaz.tarifa||'—'} €</td><td class="lbl">Importe kilometraje</td><td><strong>${datosDesplaz.importeKm||'—'} €</strong></td></tr>
+          <tr><td class="lbl">Tarifa exenta AEAT (E)</td><td>0,26 €/km</td><td class="lbl">Tarifa adicional empresa (E)</td><td>${((parseFloat(datosDesplaz.tarifa)||0)-0.26).toFixed(2)} €/km</td></tr>
+          <tr><td class="lbl">Tarifa total €/km</td><td>${datosDesplaz.tarifa||'—'} €</td><td class="lbl">Importe kilometraje</td><td><strong>${datosDesplaz.importeKm||'—'} €</strong></td></tr>
         </table>
       </div>` : ''}
 
@@ -1521,6 +1522,19 @@ async function generateParte(datosDesplaz) {
     }))
   };
   const payloadB64 = btoa(encodeURIComponent(JSON.stringify(payload)));
+  const mailAsunto = encodeURIComponent('Parte de gastos — ' + payload.auditor + ' — ' + payload.fecha);
+  const mailCuerpo = encodeURIComponent(
+    'Parte de gastos de ' + payload.auditor + '\n' +
+    'Fecha: ' + payload.fecha + '\n' +
+    'Cliente: ' + (payload.cliente||'—') + '\n' +
+    'Total general: ' + payload.totalGeneral + ' €\n' +
+    '  Transporte: ' + payload.totTransporte + ' €\n' +
+    '  Alojamiento: ' + payload.totAlojamiento + ' €\n' +
+    '  Dietas: ' + payload.totDietas + ' €\n' +
+    '  Otros: ' + payload.totOtros + ' €\n' +
+    'Nº tickets: ' + payload.numTickets
+  );
+  const mailtoHref = 'mailto:lorena.martinez@msib.es?subject=' + mailAsunto + '&body=' + mailCuerpo;
 
   // Build full HTML document
   const htmlDoc = `<!DOCTYPE html>
@@ -1531,7 +1545,7 @@ async function generateParte(datosDesplaz) {
 <title>Parte de Gastos — Moore Ibergrup Auditores</title>
 <style>
   * { box-sizing:border-box; margin:0; padding:0; }
-  body { font-family: 'Segoe UI', Arial, sans-serif; font-size:11px; color:#1E293B; background:#fff; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; font-size:13px; color:#1E293B; background:#fff; }
   .page { padding:20px 28px; max-width:900px; margin:0 auto; page-break-after:always; }
   .page:last-child { page-break-after:auto; }
   .header-report { display:flex; align-items:center; gap:18px; padding-bottom:12px; border-bottom:2px solid #1E293B; margin-bottom:14px; }
@@ -1545,8 +1559,8 @@ async function generateParte(datosDesplaz) {
   .info-table { width:100%; border-collapse:collapse; }
   .info-table td { padding:4px 6px; font-size:10px; border-bottom:1px solid #F1F5F9; }
   .info-table .lbl { color:#64748B; font-weight:600; width:35%; background:#F8FAFC; }
-  .data-table { width:100%; border-collapse:collapse; font-size:9.5px; }
-  .data-table th { background:#1E293B; color:white; padding:5px 6px; text-align:left; font-weight:600; font-size:9px; }
+  .data-table { width:100%; border-collapse:collapse; font-size:11px; }
+  .data-table th { background:#1E293B; color:white; padding:5px 6px; text-align:left; font-weight:600; font-size:10px; }
   .data-table td { padding:4px 6px; border-bottom:1px solid #F1F5F9; vertical-align:top; }
   .data-table tr:nth-child(even) td { background:#F8FAFC; }
   .num { text-align:right; font-variant-numeric:tabular-nums; }
@@ -1555,31 +1569,11 @@ async function generateParte(datosDesplaz) {
   .send-btn  { position:fixed; top:16px; right:360px; background:#2563EB; color:white; border:none; padding:10px 20px; border-radius:6px; font-size:13px; cursor:pointer; z-index:999; }
   @media print { .print-btn,.save-btn,.send-btn { display:none; } .page { padding:15px 20px; } }
 </style>
-<script>
-function enviarAdmin() {
-  const btn = document.getElementById('send-btn');
-  const p = JSON.parse(decodeURIComponent(atob(btn.dataset.p)));
-  const asunto = encodeURIComponent('Parte de gastos — ' + p.auditor + ' — ' + p.fecha);
-  const cuerpo = encodeURIComponent(
-    'Parte de gastos de ' + p.auditor + '\n' +
-    'Fecha: ' + p.fecha + '\n' +
-    'Cliente/Encargo: ' + (p.cliente||'—') + '\n' +
-    'Total general: ' + p.totalGeneral + ' €\n' +
-    '  Transporte: ' + p.totTransporte + ' €\n' +
-    '  Alojamiento: ' + p.totAlojamiento + ' €\n' +
-    '  Dietas: ' + p.totDietas + ' €\n' +
-    '  Otros: ' + p.totOtros + ' €\n' +
-    'Nº tickets: ' + p.numTickets + '\n\n' +
-    'Parte generado desde la app de tickets Moore Ibergrup.'
-  );
-  window.location.href = 'mailto:lorena.martinez@msib.es?subject=' + asunto + '&body=' + cuerpo;
-}
-<\/script>
 </head>
 <body>
 <button class="print-btn" onclick="window.print()">🖨️ Imprimir / PDF</button>
 <button class="save-btn" onclick="window.close()">✅ Hecho — cerrar</button>
-<button id="send-btn" class="send-btn" onclick="enviarAdmin()" data-p="${payloadB64}">📤 Enviar a Administración</button>
+<a class="send-btn" href="${mailtoHref}">📤 Enviar a Administración</a>
 ${pagesHtml}
 </body>
 </html>`;
